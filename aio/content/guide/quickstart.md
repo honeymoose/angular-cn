@@ -224,6 +224,10 @@ As part of the initial app, the CLI created the first Angular component for you.
 
     <code-example path="cli-quickstart/src/app/app.component.css" header="src/app/app.component.css" linenums="false"></code-example>
 
+根据版本的不同，我们在初始化的时候，发现 .css 文件的后缀名已经使用 styl 后缀名了。
+
+比如说在整理示例的代码中，你需要修改的文件名字为 app.component.css，但是在你的文件系统中，你可能只能知道 app.component.styl 这个文件。
+
 Looking good! 
 
 漂亮多了！
