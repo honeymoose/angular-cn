@@ -21,8 +21,6 @@ const _TEST_BROWSER_PLATFORM_PROVIDERS: StaticProvider[] =
 /**
  * Platform for testing
  *
- * 测试平台
- *
  * @publicApi
  */
 export const platformBrowserTesting =
@@ -30,8 +28,6 @@ export const platformBrowserTesting =
 
 /**
  * NgModule for testing.
- *
- * 用于测试的 NgModule。
  *
  * @publicApi
  */

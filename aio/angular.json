@@ -44,18 +44,7 @@
               "src/assets",
               "src/generated",
               "src/pwa-manifest.json",
-              "src/google44a5c950a9a9b940.html",
-              "src/baidu_verify_AD8wvnfKCx.html",
-              {
-                "glob": "custom-elements.min.js",
-                "input": "node_modules/@webcomponents/custom-elements",
-                "output": "/assets/js"
-              },
-              {
-                "glob": "native-shim.js",
-                "input": "node_modules/@webcomponents/custom-elements/src",
-                "output": "/assets/js"
-              }
+              "src/google385281288605d160.html"
             ],
             "styles": [
               "src/styles/main.scss"
@@ -157,18 +146,7 @@
               "src/assets",
               "src/generated",
               "src/pwa-manifest.json",
-              "src/google44a5c950a9a9b940.html",
-              "src/baidu_verify_AD8wvnfKCx.html",
-              {
-                "glob": "custom-elements.min.js",
-                "input": "node_modules/@webcomponents/custom-elements",
-                "output": "/assets/js"
-              },
-              {
-                "glob": "native-shim.js",
-                "input": "node_modules/@webcomponents/custom-elements/src",
-                "output": "/assets/js"
-              }
+              "src/google385281288605d160.html"
             ],
             "styles": [
               "src/styles/main.scss"

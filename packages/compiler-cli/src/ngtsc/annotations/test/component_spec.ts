@@ -5,17 +5,22 @@
  * Use of this source code is governed by an MIT-style license that can be
  * found in the LICENSE file at https://angular.io/license
  */
-import {CycleAnalyzer, ImportGraph} from '../../cycles';
+
+import {ConstantPool} from '@angular/compiler';
+import * as ts from 'typescript';
+
+import {CycleAnalyzer, CycleHandlingStrategy, ImportGraph} from '../../cycles';
 import {ErrorCode, FatalDiagnosticError} from '../../diagnostics';
 import {absoluteFrom} from '../../file_system';
 import {runInEachFileSystem} from '../../file_system/testing';
 import {ModuleResolver, NOOP_DEFAULT_IMPORT_RECORDER, ReferenceEmitter} from '../../imports';
 import {CompoundMetadataReader, DtsMetadataReader, InjectableClassRegistry, LocalMetadataRegistry, ResourceRegistry} from '../../metadata';
 import {PartialEvaluator} from '../../partial_evaluator';
+import {NOOP_PERF_RECORDER} from '../../perf';
 import {isNamedClassDeclaration, TypeScriptReflectionHost} from '../../reflection';
-import {LocalModuleScopeRegistry, MetadataDtsModuleScopeResolver} from '../../scope';
+import {LocalModuleScopeRegistry, MetadataDtsModuleScopeResolver, TypeCheckScopeRegistry} from '../../scope';
 import {getDeclaration, makeProgram} from '../../testing';
-import {ResourceLoader} from '../src/api';
+import {ResourceLoader, ResourceLoaderContext} from '../src/api';
 import {ComponentDecoratorHandler} from '../src/component';
 
 export class StubResourceLoader implements ResourceLoader {
@@ -23,10 +28,14 @@ export class StubResourceLoader implements ResourceLoader {
     return v;
   }
   canPreload = false;
+  canPreprocess = false;
   load(v: string): string {
     return '';
   }
   preload(): Promise<void>|undefined {
+    throw new Error('Not implemented');
+  }
+  preprocessInline(_data: string, _context: ResourceLoaderContext): Promise<string> {
     throw new Error('Not implemented');
   }
 }
@@ -37,7 +46,7 @@ function setup(program: ts.Program, options: ts.CompilerOptions, host: ts.Compil
   const evaluator = new PartialEvaluator(reflectionHost, checker, /* dependencyTracker */ null);
   const moduleResolver =
       new ModuleResolver(program, options, host, /* moduleResolutionCache */ null);
-  const importGraph = new ImportGraph(moduleResolver);
+  const importGraph = new ImportGraph(checker, NOOP_PERF_RECORDER);
   const cycleAnalyzer = new CycleAnalyzer(importGraph);
   const metaRegistry = new LocalMetadataRegistry();
   const dtsReader = new DtsMetadataReader(checker, reflectionHost);
@@ -48,17 +57,38 @@ function setup(program: ts.Program, options: ts.CompilerOptions, host: ts.Compil
   const refEmitter = new ReferenceEmitter([]);
   const injectableRegistry = new InjectableClassRegistry(reflectionHost);
   const resourceRegistry = new ResourceRegistry();
+  const typeCheckScopeRegistry = new TypeCheckScopeRegistry(scopeRegistry, metaReader);
+  const resourceLoader = new StubResourceLoader();
 
   const handler = new ComponentDecoratorHandler(
-      reflectionHost, evaluator, metaRegistry, metaReader, scopeRegistry, scopeRegistry,
+      reflectionHost,
+      evaluator,
+      metaRegistry,
+      metaReader,
+      scopeRegistry,
+      scopeRegistry,
+      typeCheckScopeRegistry,
       resourceRegistry,
-      /* isCore */ false, new StubResourceLoader(), /* rootDirs */['/'],
-      /* defaultPreserveWhitespaces */ false, /* i18nUseExternalIds */ true,
+      /* isCore */ false,
+      resourceLoader,
+      /* rootDirs */['/'],
+      /* defaultPreserveWhitespaces */ false,
+      /* i18nUseExternalIds */ true,
       /* enableI18nLegacyMessageIdFormat */ false,
-      /* i18nNormalizeLineEndingsInICUs */ undefined, moduleResolver, cycleAnalyzer, refEmitter,
-      NOOP_DEFAULT_IMPORT_RECORDER, /* depTracker */ null, injectableRegistry,
-      /* annotateForClosureCompiler */ false);
-  return {reflectionHost, handler};
+      /* usePoisonedData */ false,
+      /* i18nNormalizeLineEndingsInICUs */ undefined,
+      moduleResolver,
+      cycleAnalyzer,
+      CycleHandlingStrategy.UseRemoteScoping,
+      refEmitter,
+      NOOP_DEFAULT_IMPORT_RECORDER,
+      /* depTracker */ null,
+      injectableRegistry,
+      /* semanticDepGraphUpdater */ null,
+      /* annotateForClosureCompiler */ false,
+      NOOP_PERF_RECORDER,
+  );
+  return {reflectionHost, handler, resourceLoader};
 }
 
 runInEachFileSystem(() => {
@@ -198,6 +228,80 @@ runInEachFileSystem(() => {
       }
       const {analysis} = handler.analyze(TestCmp, detected.metadata);
       expect(analysis?.resources.styles.size).toBe(3);
+    });
+
+    it('does not emit a program with template parse errors', () => {
+      const template = '{{x ? y }}';
+      const {program, options, host} = makeProgram([
+        {
+          name: _('/node_modules/@angular/core/index.d.ts'),
+          contents: 'export const Component: any;',
+        },
+        {
+          name: _('/entry.ts'),
+          contents: `
+          import {Component} from '@angular/core';
+          @Component({
+            template: '${template}',
+          }) class TestCmp {}
+      `
+        },
+      ]);
+
+      const {reflectionHost, handler} = setup(program, options, host);
+      const TestCmp = getDeclaration(program, _('/entry.ts'), 'TestCmp', isNamedClassDeclaration);
+      const detected = handler.detect(TestCmp, reflectionHost.getDecoratorsOfDeclaration(TestCmp));
+      if (detected === undefined) {
+        return fail('Failed to recognize @Component');
+      }
+      const {analysis} = handler.analyze(TestCmp, detected.metadata);
+      const symbol = handler.symbol(TestCmp, analysis!);
+      const resolution = handler.resolve(TestCmp, analysis!, symbol);
+
+      const compileResult =
+          handler.compileFull(TestCmp, analysis!, resolution.data!, new ConstantPool());
+      expect(compileResult).toEqual([]);
+    });
+
+    it('should replace inline style content with transformed content', async () => {
+      const {program, options, host} = makeProgram([
+        {
+          name: _('/node_modules/@angular/core/index.d.ts'),
+          contents: 'export const Component: any;',
+        },
+        {
+          name: _('/entry.ts'),
+          contents: `
+          import {Component} from '@angular/core';
+
+          @Component({
+            template: '',
+            styles: ['.abc {}']
+          }) class TestCmp {}
+      `
+        },
+      ]);
+      const {reflectionHost, handler, resourceLoader} = setup(program, options, host);
+      resourceLoader.canPreload = true;
+      resourceLoader.canPreprocess = true;
+      resourceLoader.preprocessInline = async function(data, context) {
+        expect(data).toBe('.abc {}');
+        expect(context.containingFile).toBe(_('/entry.ts').toLowerCase());
+        expect(context.type).toBe('style');
+
+        return '.xyz {}';
+      };
+
+      const TestCmp = getDeclaration(program, _('/entry.ts'), 'TestCmp', isNamedClassDeclaration);
+      const detected = handler.detect(TestCmp, reflectionHost.getDecoratorsOfDeclaration(TestCmp));
+      if (detected === undefined) {
+        return fail('Failed to recognize @Component');
+      }
+
+      await handler.preanalyze(TestCmp, detected.metadata);
+
+      const {analysis} = handler.analyze(TestCmp, detected.metadata);
+      expect(analysis?.inlineStyles).toEqual(jasmine.arrayWithExactContents(['.xyz {}']));
     });
   });
 

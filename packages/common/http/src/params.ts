@@ -9,11 +9,7 @@
 /**
  * A codec for encoding and decoding parameters in URLs.
  *
- * 一个用来在 URL 中编码和解码参数的编解码器。
- *
  * Used by `HttpParams`.
- *
- * 由 `HttpParams` 使用。
  *
  * @publicApi
  **/
@@ -28,32 +24,18 @@ export interface HttpParameterCodec {
 /**
  * Provides encoding and decoding of URL parameter and query-string values.
  *
- * 提供 URL 参数和查询字符串值的编码和解码。
- *
  * Serializes and parses URL parameter keys and values to encode and decode them.
  * If you pass URL query parameters without encoding,
  * the query parameters can be misinterpreted at the receiving end.
  *
- *
- * 一个 `HttpParameterCodec`，它使用 `encodeURIComponent` 和 `decodeURIComponent` 来序列化和解析 URL 参数的 key 和 value。
- * 如果你传入未编码的查询参数，那么接收端可能会对这些参数进行错误解析。请使用 `HttpParameterCodec` 类对查询字符串的值进行编码和解码。
  *
  * @publicApi
  */
 export class HttpUrlEncodingCodec implements HttpParameterCodec {
   /**
    * Encodes a key name for a URL parameter or query-string.
-   *
-   * 编码 URL 参数或查询字符串的键名。
-   *
    * @param key The key name.
-   *
-   * 键名。
-   *
    * @returns The encoded key name.
-   *
-   * 编码过的键名。
-   *
    */
   encodeKey(key: string): string {
     return standardEncoding(key);
@@ -61,17 +43,8 @@ export class HttpUrlEncodingCodec implements HttpParameterCodec {
 
   /**
    * Encodes the value of a URL parameter or query-string.
-   *
-   * 对 URL 参数或查询字符串的值进行编码。
-   *
    * @param value The value.
-   *
-   * 值。
-   *
    * @returns The encoded value.
-   *
-   * 编码过的值。
-   *
    */
   encodeValue(value: string): string {
     return standardEncoding(value);
@@ -79,17 +52,8 @@ export class HttpUrlEncodingCodec implements HttpParameterCodec {
 
   /**
    * Decodes an encoded URL parameter or query-string key.
-   *
-   * 解码编码的 URL 参数或查询字符串键。
-   *
    * @param key The encoded key name.
-   *
-   * 编码过的键名。
-   *
    * @returns The decoded key name.
-   *
-   * 解码过的键名。
-   *
    */
   decodeKey(key: string): string {
     return decodeURIComponent(key);
@@ -97,17 +61,8 @@ export class HttpUrlEncodingCodec implements HttpParameterCodec {
 
   /**
    * Decodes an encoded URL parameter or query-string value.
-   *
-   * 解码编码的 URL 参数或查询字符串值。
-   *
    * @param value The encoded value.
-   *
-   * 编码过的值。
-   *
    * @returns The decoded value.
-   *
-   * 解码过的值。
-   *
    */
   decodeValue(value: string) {
     return decodeURIComponent(value);
@@ -118,7 +73,10 @@ export class HttpUrlEncodingCodec implements HttpParameterCodec {
 function paramParser(rawParams: string, codec: HttpParameterCodec): Map<string, string[]> {
   const map = new Map<string, string[]>();
   if (rawParams.length > 0) {
-    const params: string[] = rawParams.split('&');
+    // The `window.location.search` can be used while creating an instance of the `HttpParams` class
+    // (e.g. `new HttpParams({ fromString: window.location.search })`). The `window.location.search`
+    // may start with the `?` char, so we strip it if it's present.
+    const params: string[] = rawParams.replace(/^\?/, '').split('&');
     params.forEach((param: string) => {
       const eqIdx = param.indexOf('=');
       const [key, val]: string[] = eqIdx == -1 ?
@@ -143,17 +101,18 @@ function standardEncoding(v: string): string {
       .replace(/%3F/gi, '?')
       .replace(/%2F/gi, '/');
 }
+function valueToString(value: string|number|boolean): string {
+  return `${value}`;
+}
 
 interface Update {
   param: string;
-  value?: string;
+  value?: string|number|boolean;
   op: 'a'|'d'|'s';
 }
 
 /**
  * Options used to construct an `HttpParams` instance.
- *
- * 用于构造 `HttpParams` 实例的选项。
  *
  * @publicApi
  */
@@ -161,21 +120,13 @@ export interface HttpParamsOptions {
   /**
    * String representation of the HTTP parameters in URL-query-string format.
    * Mutually exclusive with `fromObject`.
-   *
-   * HTTP 参数的 URL 查询字符串格式表示法。与 `fromObject` 互斥。
    */
   fromString?: string;
 
-  /** Object map of the HTTP parameters. Mutually exclusive with `fromString`.
-   *
-   * HTTP 参数的对象映射表。与 `fromString` 互斥。
-   */
-  fromObject?: {[param: string]: string|ReadonlyArray<string>};
+  /** Object map of the HTTP parameters. Mutually exclusive with `fromString`. */
+  fromObject?: {[param: string]: string|number|boolean|ReadonlyArray<string|number|boolean>};
 
-  /** Encoding codec used to parse and serialize the parameters.
-   *
-   * 用来解析和序列化参数的编解码器。
-   */
+  /** Encoding codec used to parse and serialize the parameters. */
   encoder?: HttpParameterCodec;
 }
 
@@ -183,11 +134,7 @@ export interface HttpParamsOptions {
  * An HTTP request/response body that represents serialized parameters,
  * per the MIME type `application/x-www-form-urlencoded`.
  *
- * HTTP 请求体/响应体，用来表示序列化参数，它们的 MIME 类型都是 `application/x-www-form-urlencoded`。
- *
  * This class is immutable; all mutation operations return a new instance.
- *
- * 这个类是不可变的 - 每个修改类的操作都会返回一个新实例。
  *
  * @publicApi
  */
@@ -217,18 +164,9 @@ export class HttpParams {
 
   /**
    * Reports whether the body includes one or more values for a given parameter.
-   *
-   * 报告主体中是否包含给定参数的一个或多个值。
-   *
    * @param param The parameter name.
-   *
-   * 参数名称。
-   *
    * @returns True if the parameter has one or more values,
    * false if it has no value or is not present.
-   *
-   * 如果参数具有一个或多个值，则为 true；如果参数没有值或不存在，则为 false。
-   *
    */
   has(param: string): boolean {
     this.init();
@@ -237,17 +175,9 @@ export class HttpParams {
 
   /**
    * Retrieves the first value for a parameter.
-   *
-   * 检索参数的第一个值。
-   *
    * @param param The parameter name.
-   *
-   * 参数名称。
-   *
    * @returns The first value of the given parameter,
    * or `null` if the parameter is not present.
-   *
-   * 获取给定参数名对应的第一个值，如果没有则返回 `null`。
    */
   get(param: string): string|null {
     this.init();
@@ -257,17 +187,9 @@ export class HttpParams {
 
   /**
    * Retrieves all values for a  parameter.
-   *
-   * 检索某个参数的所有值。
-   *
    * @param param The parameter name.
-   *
-   * 参数名称。
-   *
    * @returns All values in a string array,
    * or `null` if the parameter not present.
-   *
-   * 获取给定参数名对应的所有值，如果没有则返回 `null`。
    */
   getAll(param: string): string[]|null {
     this.init();
@@ -276,13 +198,7 @@ export class HttpParams {
 
   /**
    * Retrieves all the parameters for this body.
-   *
-   * 检索此 `body` 的所有参数。
-   *
    * @returns The parameter names in a string array.
-   *
-   * 字符串数组中的参数名称。
-   *
    */
   keys(): string[] {
     this.init();
@@ -291,73 +207,59 @@ export class HttpParams {
 
   /**
    * Appends a new value to existing values for a parameter.
-   *
-   * 将新值附加到参数的现有值。
-   *
    * @param param The parameter name.
-   *
-   * 参数名称。
-   *
    * @param value The new value to add.
-   *
-   * 要添加的新值。
-   *
    * @return A new body with the appended value.
-   *
-   * 构造一个新的 `body`，添加一个具有给定参数名的值。
    */
-  append(param: string, value: string): HttpParams {
+  append(param: string, value: string|number|boolean): HttpParams {
     return this.clone({param, value, op: 'a'});
   }
 
   /**
-   * Replaces the value for a parameter.
-   *
-   * 替换参数的值。
-   *
-   * @param param The parameter name.
-   *
-   * 参数名称。
-   *
-   * @param value The new value.
-   *
-   * 新值。
-   *
+   * Constructs a new body with appended values for the given parameter name.
+   * @param params parameters and values
    * @return A new body with the new value.
-   *
-   * 构造一个新的 `body`，具有一个给定参数名的新值。
    */
-  set(param: string, value: string): HttpParams {
+  appendAll(params: {[param: string]: string|number|boolean|ReadonlyArray<string|number|boolean>}):
+      HttpParams {
+    const updates: Update[] = [];
+    Object.keys(params).forEach(param => {
+      const value = params[param];
+      if (Array.isArray(value)) {
+        value.forEach(_value => {
+          updates.push({param, value: _value, op: 'a'});
+        });
+      } else {
+        updates.push({param, value: value as (string | number | boolean), op: 'a'});
+      }
+    });
+    return this.clone(updates);
+  }
+
+  /**
+   * Replaces the value for a parameter.
+   * @param param The parameter name.
+   * @param value The new value.
+   * @return A new body with the new value.
+   */
+  set(param: string, value: string|number|boolean): HttpParams {
     return this.clone({param, value, op: 's'});
   }
 
   /**
    * Removes a given value or all values from a parameter.
-   *
-   * 从参数中删除给定值或所有值。
-   *
    * @param param The parameter name.
-   *
-   * 参数名称。
-   *
    * @param value The value to remove, if provided.
-   *
-   * 要删除的值（如果提供）。
-   *
    * @return A new body with the given value removed, or with all values
    * removed if no value is specified.
-   *
-   * 构造一个新的 `body`，如果指定了 `value`，则移除具有指定 `value` 和指定 `param` 的条目；如果没有指定 `value`，则移除指定 `param` 对应的所有值。
    */
-  delete(param: string, value?: string): HttpParams {
+  delete(param: string, value?: string|number|boolean): HttpParams {
     return this.clone({param, value, op: 'd'});
   }
 
   /**
    * Serializes the body to an encoded string, where key-value pairs (separated by `=`) are
    * separated by `&`s.
-   *
-   * 把该 `body` 序列化为一个编码过的字符串，其中的 key-value 对（用 `=` 分隔）会以 `&` 分隔。
    */
   toString(): string {
     this.init();
@@ -376,10 +278,10 @@ export class HttpParams {
         .join('&');
   }
 
-  private clone(update: Update): HttpParams {
+  private clone(update: Update|Update[]): HttpParams {
     const clone = new HttpParams({encoder: this.encoder} as HttpParamsOptions);
     clone.cloneFrom = this.cloneFrom || this;
-    clone.updates = (this.updates || []).concat([update]);
+    clone.updates = (this.updates || []).concat(update);
     return clone;
   }
 
@@ -395,13 +297,13 @@ export class HttpParams {
           case 'a':
           case 's':
             const base = (update.op === 'a' ? this.map!.get(update.param) : undefined) || [];
-            base.push(update.value!);
+            base.push(valueToString(update.value!));
             this.map!.set(update.param, base);
             break;
           case 'd':
             if (update.value !== undefined) {
               let base = this.map!.get(update.param) || [];
-              const idx = base.indexOf(update.value);
+              const idx = base.indexOf(valueToString(update.value));
               if (idx !== -1) {
                 base.splice(idx, 1);
               }

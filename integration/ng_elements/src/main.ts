@@ -1,5 +1,5 @@
-import { platformBrowser } from '@angular/platform-browser';
-import { AppModuleNgFactory } from './app.ngfactory';
+import {platformBrowser} from '@angular/platform-browser';
+import {AppModuleNgFactory} from './app.ngfactory';
 
 platformBrowser().bootstrapModuleFactory(AppModuleNgFactory, {ngZone: 'noop'});
 

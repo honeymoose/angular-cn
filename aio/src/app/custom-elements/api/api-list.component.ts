@@ -17,9 +17,9 @@ import { Option } from 'app/shared/select/select.component';
 import { map } from 'rxjs/operators';
 
 class SearchCriteria {
-  query ? = '';
-  status ? = 'all';
-  type ? = 'all';
+  query = '';
+  status = 'all';
+  type = 'all';
 }
 
 @Component({
@@ -41,25 +41,25 @@ export class ApiListComponent implements OnInit {
 
   // API types
   types: Option[] = [
-    { value: 'all', title: '全部' },
-    { value: 'class', title: '类' },
-    { value: 'const', title: '常量'},
-    { value: 'decorator', title: '装饰器' },
-    { value: 'directive', title: '指令' },
-    { value: 'enum', title: '枚举' },
-    { value: 'function', title: '函数' },
-    { value: 'interface', title: '接口' },
-    { value: 'pipe', title: '管道'},
+    { value: 'all', title: 'All' },
+    { value: 'class', title: 'Class' },
+    { value: 'const', title: 'Const'},
+    { value: 'decorator', title: 'Decorator' },
+    { value: 'directive', title: 'Directive' },
+    { value: 'enum', title: 'Enum' },
+    { value: 'function', title: 'Function' },
+    { value: 'interface', title: 'Interface' },
+    { value: 'pipe', title: 'Pipe'},
     { value: 'ngmodule', title: 'NgModule'},
-    { value: 'type-alias', title: '类型别名' },
-    { value: 'package', title: '包'}
+    { value: 'type-alias', title: 'Type alias' },
+    { value: 'package', title: 'Package'}
   ];
 
   statuses: Option[] = [
-    { value: 'all', title: '全部' },
-    { value: 'stable', title: '稳定'},
-    { value: 'deprecated', title: '弃用' },
-    { value: 'security-risk', title: '安全风险' }
+    { value: 'all', title: 'All' },
+    { value: 'stable', title: 'Stable'},
+    { value: 'deprecated', title: 'Deprecated' },
+    { value: 'security-risk', title: 'Security Risk' }
   ];
 
   @ViewChild('filter', { static: true }) queryEl: ElementRef;
@@ -116,13 +116,13 @@ export class ApiListComponent implements OnInit {
     const sectionNameMatches = !query || section.name.indexOf(query) !== -1;
 
     const matchesQuery = (item: ApiItem) =>
-      sectionNameMatches || item.name.indexOf(query!) !== -1;
+      sectionNameMatches || item.name.indexOf(query) !== -1;
     const matchesStatus = (item: ApiItem) =>
       status === 'all' || status === item.stability || (status === 'security-risk' && item.securityRisk);
     const matchesType = (item: ApiItem) =>
       type === 'all' || type === item.docType;
 
-    const items = section.items!.filter(item =>
+    const items: ApiItem[] = (section.items || []).filter(item =>
       matchesType(item) && matchesStatus(item) && matchesQuery(item));
 
     // If there are no items we still return an empty array if the section name matches and the type is 'package'
@@ -157,10 +157,10 @@ export class ApiListComponent implements OnInit {
       type:   type   !== 'all' ? type   : undefined
     };
 
-    this.locationService.setSearch('API 搜索', params);
+    this.locationService.setSearch('API Search', params);
   }
 
-  private setSearchCriteria(criteria: SearchCriteria) {
+  private setSearchCriteria(criteria: Partial<SearchCriteria>) {
     this.criteriaSubject.next(Object.assign(this.searchCriteria, criteria));
     this.setLocationSearch();
   }

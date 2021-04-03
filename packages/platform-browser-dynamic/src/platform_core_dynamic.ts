@@ -13,8 +13,6 @@ import {JitCompilerFactory} from './compiler_factory';
 /**
  * A platform that included corePlatform and the compiler.
  *
- * 一个包含 corePlatform 和编译器的平台。
- *
  * @publicApi
  */
 export const platformCoreDynamic = createPlatformFactory(platformCore, 'coreDynamic', [

@@ -125,17 +125,17 @@
         display: flex;
         justify-content: space-between;
 
-      .github-links {
-        a {
-          color: $mediumgray;
+        .github-links {
+          a {
+            color: $mediumgray;
 
-          .material-icons:hover {
-            background: none;
-            color: $blue;
+            .material-icons:hover {
+              background: none;
+              color: $blue;
+            }
           }
         }
       }
-    }
 
       h3 {
         margin: 6px 0;
@@ -227,7 +227,6 @@
   .inherited-members-list {
     ul {
       padding: 0;
-
       li {
         list-style: none;
         margin-bottom: 12px;
@@ -239,7 +238,6 @@
     li,
     a {
       font-weight: bold;
-
       i {
         font-weight: normal;
       }
@@ -278,6 +276,7 @@
   }
 
   h1 {
+    @include font-size(24);
     margin: 0;
   }
 }

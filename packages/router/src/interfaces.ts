@@ -21,14 +21,8 @@ import {UrlSegment, UrlTree} from './url_tree';
  * navigation is cancelled. If any guard returns a `UrlTree`, the current navigation
  * is cancelled and a new navigation begins to the `UrlTree` returned from the guard.
  *
- * 类可以实现的接口，用于确定是否可以激活路由。如果所有守卫都返回了 `true`，那么导航将继续。如果任何守卫返回 `false`，则导航将被取消。如果任何守卫返回 `UrlTree` ，当前导航被取消，新的导航开始到守卫所返回的 `UrlTree`。
- *
  * The following example implements a `CanActivate` function that checks whether the
  * current user has permission to activate the requested route.
- *
- * 一个接口，某些类可以实现它以扮演一个守卫，来决定该路由能否激活。
- * 如果所有守卫都返回 `true`，就会继续导航。如果任何一个守卫返回了 `false`，就会取消导航。
- * 如果任何一个守卫返回了 `UrlTree`，就会取消当前导航，并开始导航到这个守卫所返回的 `UrlTree`。
  *
  * ```
  * class UserToken {}
@@ -72,8 +66,6 @@ import {UrlSegment, UrlTree} from './url_tree';
  *
  * You can alternatively provide an in-line function with the `canActivate` signature:
  *
- * 你还可以转而实现一个带有 `canActivate` 签名的函数：
- *
  * ```
  * @NgModule({
  *   imports: [
@@ -113,14 +105,8 @@ export type CanActivateFn = (route: ActivatedRouteSnapshot, state: RouterStateSn
  * navigation is cancelled. If any guard returns a `UrlTree`, current navigation
  * is cancelled and a new navigation begins to the `UrlTree` returned from the guard.
  *
- * 类可以实现的接口，用于确定是否可以激活子路由。如果所有守卫都返回了 `true`，那么导航将继续。如果任何守卫返回 `false`，则导航将被取消。如果任何守卫返回 `UrlTree` ，当前导航被取消，新的导航开始到守卫所返回的 `UrlTree`。
- *
  * The following example implements a `CanActivateChild` function that checks whether the
  * current user has permission to activate the requested child route.
- *
- * 一个接口，某些类可以实现它以扮演一个守卫，来决定该路由的子路由能否激活。
- * 如果所有守卫都返回 `true`，就会继续导航。如果任何一个守卫返回了 `false`，就会取消导航。
- * 如果任何一个守卫返回了 `UrlTree`，就会取消当前导航，并开始导航到这个守卫所返回的 `UrlTree`。
  *
  * ```
  * class UserToken {}
@@ -169,8 +155,6 @@ export type CanActivateFn = (route: ActivatedRouteSnapshot, state: RouterStateSn
  *
  * You can alternatively provide an in-line function with the `canActivateChild` signature:
  *
- * 你还可以转而提供一个具有 `canActivateChild` 签名的函数：
- *
  * ```
  * @NgModule({
  *   imports: [
@@ -215,14 +199,8 @@ export type CanActivateChildFn = (childRoute: ActivatedRouteSnapshot, state: Rou
  * navigation is cancelled. If any guard returns a `UrlTree`, current navigation
  * is cancelled and a new navigation begins to the `UrlTree` returned from the guard.
  *
- * 类可以实现的接口，用于确定是否可以离开某个路由。如果所有守卫都返回了 `true`，那么导航将继续。如果任何守卫返回 `false`，则导航将被取消。如果任何守卫返回 `UrlTree` ，当前导航被取消，新的导航开始到守卫所返回的 `UrlTree`。
- *
  * The following example implements a `CanDeactivate` function that checks whether the
  * current user has permission to deactivate the requested route.
- *
- * 一个接口，某些类可以实现它以扮演一个守卫，来决定该路由能否停用。
- * 如果所有守卫都返回 `true`，就会继续导航。如果任何一个守卫返回了 `false`，就会取消导航。
- * 如果任何一个守卫返回了 `UrlTree`，就会取消当前导航，并开始导航到这个守卫所返回的 `UrlTree`。
  *
  * ```
  * class UserToken {}
@@ -235,8 +213,6 @@ export type CanActivateChildFn = (childRoute: ActivatedRouteSnapshot, state: Rou
  *
  * Here, the defined guard function is provided as part of the `Route` object
  * in the router configuration:
- *
- * 在此，定义的守卫函数作为路由器配置中的 `Route` 对象：
  *
  * ```
  *
@@ -270,8 +246,6 @@ export type CanActivateChildFn = (childRoute: ActivatedRouteSnapshot, state: Rou
  * ```
  *
  * You can alternatively provide an in-line function with the `canDeactivate` signature:
- *
- * 你还可以转而提供具有 `canDeactivate` 签名的函数：
  *
  * ```
  * @NgModule({
@@ -317,12 +291,8 @@ export type CanDeactivateFn<T> =
  * The interface defines a `resolve()` method that is invoked when the navigation starts.
  * The router waits for the data to be resolved before the route is finally activated.
  *
- * 可以实现为数据提供者的类的接口。数据提供者类可与路由器一起使用，以在导航期间解析数据。接口定义了开始导航时调用 `resolve()` 路由器在最终激活路由之前等待数据解析。
- *
  * The following example implements a `resolve()` method that retrieves the data
  * needed to activate the requested route.
- *
- * 一个接口，某些类可以实现它以扮演一个数据提供者。
  *
  * ```
  * @Injectable({ providedIn: 'root' })
@@ -362,8 +332,6 @@ export type CanDeactivateFn<T> =
  *
  * You can alternatively provide an in-line function with the `resolve()` signature:
  *
- * 你还可以转而提供一个具有 `resolve` 签名的函数：
- *
  * ```
  * export const myHero: Hero = {
  *   // ...
@@ -397,8 +365,6 @@ export type CanDeactivateFn<T> =
  * all guards have run and succeeded.
  * For example, consider the following route configuration:
  *
- * 如果同时指定了守卫和解析器，则直到所有守卫都运行并成功后，解析器才会执行。例如，考虑以下路由配置：
- *
  * ```
  * {
  *  path: 'base'
@@ -414,10 +380,7 @@ export type CanDeactivateFn<T> =
  *  ]
  * }
  * ```
- *
  * The order of execution is: BaseGuard, ChildGuard, BaseDataResolver, ChildDataResolver.
- *
- * 执行顺序为：BaseGuard、ChildGuard、BaseDataResolver、ChildDataResolver。
  *
  * @publicApi
  */
@@ -434,13 +397,9 @@ export interface Resolve<T> {
  * navigation is cancelled. If any guard returns a `UrlTree`, current navigation
  * is cancelled and a new navigation starts to the `UrlTree` returned from the guard.
  *
- * 类可以实现的接口，用于确定是否可以加载子路由。如果所有守卫都返回了 `true`，那么导航将继续。如果任何守卫返回 `false`，则导航将被取消。如果任何守卫返回 `UrlTree` ，当前导航被取消，新的导航开始到守卫所返回的 `UrlTree`。
- *
  * The following example implements a `CanLoad` function that decides whether the
  * current user has permission to load requested child routes.
  *
- *
- * 一个接口，某些类可以实现它以扮演一个守卫，来决定该路由的子路由能否加载。
  *
  * ```
  * class UserToken {}
@@ -482,8 +441,6 @@ export interface Resolve<T> {
  * ```
  *
  * You can alternatively provide an in-line function with the `canLoad` signature:
- *
- * 你还可以转而提供一个具有 `canLoad` 签名的函数：
  *
  * ```
  * @NgModule({

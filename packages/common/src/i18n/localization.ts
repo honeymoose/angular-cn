@@ -48,8 +48,6 @@ export function getPluralCategory(
 /**
  * Returns the plural case based on the locale
  *
- * 根据语言环境返回复数形式
- *
  * @publicApi
  */
 @Injectable()

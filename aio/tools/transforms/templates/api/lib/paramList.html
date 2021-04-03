@@ -27,13 +27,13 @@
       {% if (parameter.shortDescription | trim) or (parameter.description | trim) %}{$ parameter.shortDescription + '\n\n' + parameter.description $}
       {% endif %}
 
-        {% if parameter.isOptional or parameter.defaultValue !== undefined %}<div no-translate>可选. 默认值是 `{$ parameter.defaultValue === undefined and 'undefined' or parameter.defaultValue $}`.</div>{% endif %}
+      {% if parameter.isOptional or parameter.defaultValue !== undefined %}Optional. Default is `{$ parameter.defaultValue === undefined and 'undefined' or parameter.defaultValue $}`.{% endif %}
       {% endmarked %}
       </td>
     </tr>{% endfor %}
   </tbody>
 </table>
 {%- else -%}
-<p>没有参数。</p>
+<p>There are no parameters.</p>
 {%- endif -%}
 {%- endmacro -%}

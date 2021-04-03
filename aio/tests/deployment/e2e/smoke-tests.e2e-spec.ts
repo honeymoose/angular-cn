@@ -18,8 +18,8 @@ describe(browser.baseUrl, () => {
       await page.goTo('');
       const text = await page.getDocViewerText();
 
-      expect(text).toContain('one framework');
-      expect(text).toContain('mobile & desktop');
+      expect(text).toContain('modern web');
+      expect(text).toContain('developer\'s platform');
     });
 
     describe('(marketing pages)', () => {
@@ -103,11 +103,10 @@ describe(browser.baseUrl, () => {
     });
 
     it('should show relevant results on 404', async () => {
-      await page.goTo('http/router');
+      await page.goTo('common/http');
       const results = await page.getSearchResults();
 
-      expect(results).toContain('HttpClient');
-      expect(results).toContain('Router');
+      expect(results).toContain('common/http package');
     });
   });
 });

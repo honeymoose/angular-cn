@@ -66,8 +66,6 @@ export const SERVER_RENDER_PROVIDERS: Provider[] = [
 /**
  * The ng module for the server.
  *
- * 服务器的 ng 模块。
- *
  * @publicApi
  */
 @NgModule({
@@ -100,8 +98,6 @@ export const platformServer: (extraProviders?: StaticProvider[]|undefined) => Pl
 
 /**
  * The server platform that supports the runtime compiler.
- *
- * 支持运行时编译器的服务器平台。
  *
  * @publicApi
  */

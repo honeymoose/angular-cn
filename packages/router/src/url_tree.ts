@@ -13,53 +13,128 @@ export function createEmptyUrlTree() {
   return new UrlTree(new UrlSegmentGroup([], {}), {}, null);
 }
 
-export function containsTree(container: UrlTree, containee: UrlTree, exact: boolean): boolean {
-  if (exact) {
-    return equalQueryParams(container.queryParams, containee.queryParams) &&
-        equalSegmentGroups(container.root, containee.root);
-  }
-
-  return containsQueryParams(container.queryParams, containee.queryParams) &&
-      containsSegmentGroup(container.root, containee.root);
+/**
+ * A set of options which specify how to determine if a `UrlTree` is active, given the `UrlTree`
+ * for the current router state.
+ *
+ * @publicApi
+ * @see Router.isActive
+ */
+export interface IsActiveMatchOptions {
+  /**
+   * Defines the strategy for comparing the matrix parameters of two `UrlTree`s.
+   *
+   * The matrix parameter matching is dependent on the strategy for matching the
+   * segments. That is, if the `paths` option is set to `'subset'`, only
+   * the matrix parameters of the matching segments will be compared.
+   *
+   * - `'exact'`: Requires that matching segments also have exact matrix parameter
+   * matches.
+   * - `'subset'`: The matching segments in the router's active `UrlTree` may contain
+   * extra matrix parameters, but those that exist in the `UrlTree` in question must match.
+   * - `'ignored'`: When comparing `UrlTree`s, matrix params will be ignored.
+   */
+  matrixParams: 'exact'|'subset'|'ignored';
+  /**
+   * Defines the strategy for comparing the query parameters of two `UrlTree`s.
+   *
+   * - `'exact'`: the query parameters must match exactly.
+   * - `'subset'`: the active `UrlTree` may contain extra parameters,
+   * but must match the key and value of any that exist in the `UrlTree` in question.
+   * - `'ignored'`: When comparing `UrlTree`s, query params will be ignored.
+   */
+  queryParams: 'exact'|'subset'|'ignored';
+  /**
+   * Defines the strategy for comparing the `UrlSegment`s of the `UrlTree`s.
+   *
+   * - `'exact'`: all segments in each `UrlTree` must match.
+   * - `'subset'`: a `UrlTree` will be determined to be active if it
+   * is a subtree of the active route. That is, the active route may contain extra
+   * segments, but must at least have all the segements of the `UrlTree` in question.
+   */
+  paths: 'exact'|'subset';
+  /**
+   * - 'exact'`: indicates that the `UrlTree` fragments must be equal.
+   * - `'ignored'`: the fragments will not be compared when determining if a
+   * `UrlTree` is active.
+   */
+  fragment: 'exact'|'ignored';
 }
 
-function equalQueryParams(container: Params, containee: Params): boolean {
+type ParamMatchOptions = 'exact'|'subset'|'ignored';
+
+type PathCompareFn =
+    (container: UrlSegmentGroup, containee: UrlSegmentGroup, matrixParams: ParamMatchOptions) =>
+        boolean;
+type ParamCompareFn = (container: Params, containee: Params) => boolean;
+
+const pathCompareMap: Record<IsActiveMatchOptions['paths'], PathCompareFn> = {
+  'exact': equalSegmentGroups,
+  'subset': containsSegmentGroup,
+};
+const paramCompareMap: Record<ParamMatchOptions, ParamCompareFn> = {
+  'exact': equalParams,
+  'subset': containsParams,
+  'ignored': () => true,
+};
+
+export function containsTree(
+    container: UrlTree, containee: UrlTree, options: IsActiveMatchOptions): boolean {
+  return pathCompareMap[options.paths](container.root, containee.root, options.matrixParams) &&
+      paramCompareMap[options.queryParams](container.queryParams, containee.queryParams) &&
+      !(options.fragment === 'exact' && container.fragment !== containee.fragment);
+}
+
+function equalParams(container: Params, containee: Params): boolean {
   // TODO: This does not handle array params correctly.
   return shallowEqual(container, containee);
 }
 
-function equalSegmentGroups(container: UrlSegmentGroup, containee: UrlSegmentGroup): boolean {
+function equalSegmentGroups(
+    container: UrlSegmentGroup, containee: UrlSegmentGroup,
+    matrixParams: ParamMatchOptions): boolean {
   if (!equalPath(container.segments, containee.segments)) return false;
+  if (!matrixParamsMatch(container.segments, containee.segments, matrixParams)) {
+    return false;
+  }
   if (container.numberOfChildren !== containee.numberOfChildren) return false;
   for (const c in containee.children) {
     if (!container.children[c]) return false;
-    if (!equalSegmentGroups(container.children[c], containee.children[c])) return false;
+    if (!equalSegmentGroups(container.children[c], containee.children[c], matrixParams))
+      return false;
   }
   return true;
 }
 
-function containsQueryParams(container: Params, containee: Params): boolean {
+function containsParams(container: Params, containee: Params): boolean {
   return Object.keys(containee).length <= Object.keys(container).length &&
       Object.keys(containee).every(key => equalArraysOrString(container[key], containee[key]));
 }
 
-function containsSegmentGroup(container: UrlSegmentGroup, containee: UrlSegmentGroup): boolean {
-  return containsSegmentGroupHelper(container, containee, containee.segments);
+function containsSegmentGroup(
+    container: UrlSegmentGroup, containee: UrlSegmentGroup,
+    matrixParams: ParamMatchOptions): boolean {
+  return containsSegmentGroupHelper(container, containee, containee.segments, matrixParams);
 }
 
 function containsSegmentGroupHelper(
-    container: UrlSegmentGroup, containee: UrlSegmentGroup, containeePaths: UrlSegment[]): boolean {
+    container: UrlSegmentGroup, containee: UrlSegmentGroup, containeePaths: UrlSegment[],
+    matrixParams: ParamMatchOptions): boolean {
   if (container.segments.length > containeePaths.length) {
     const current = container.segments.slice(0, containeePaths.length);
     if (!equalPath(current, containeePaths)) return false;
     if (containee.hasChildren()) return false;
+    if (!matrixParamsMatch(current, containeePaths, matrixParams)) return false;
     return true;
 
   } else if (container.segments.length === containeePaths.length) {
     if (!equalPath(container.segments, containeePaths)) return false;
+    if (!matrixParamsMatch(container.segments, containeePaths, matrixParams)) return false;
     for (const c in containee.children) {
       if (!container.children[c]) return false;
-      if (!containsSegmentGroup(container.children[c], containee.children[c])) return false;
+      if (!containsSegmentGroup(container.children[c], containee.children[c], matrixParams)) {
+        return false;
+      }
     }
     return true;
 
@@ -67,9 +142,18 @@ function containsSegmentGroupHelper(
     const current = containeePaths.slice(0, container.segments.length);
     const next = containeePaths.slice(container.segments.length);
     if (!equalPath(container.segments, current)) return false;
+    if (!matrixParamsMatch(container.segments, current, matrixParams)) return false;
     if (!container.children[PRIMARY_OUTLET]) return false;
-    return containsSegmentGroupHelper(container.children[PRIMARY_OUTLET], containee, next);
+    return containsSegmentGroupHelper(
+        container.children[PRIMARY_OUTLET], containee, next, matrixParams);
   }
+}
+
+function matrixParamsMatch(
+    containerPaths: UrlSegment[], containeePaths: UrlSegment[], options: ParamMatchOptions) {
+  return containeePaths.every((containeeSegment, i) => {
+    return paramCompareMap[options](containerPaths[i].parameters, containeeSegment.parameters);
+  });
 }
 
 /**
@@ -77,19 +161,12 @@ function containsSegmentGroupHelper(
  *
  * Represents the parsed URL.
  *
- * 代表已解析的 URL。
- *
  * Since a router state is a tree, and the URL is nothing but a serialized state, the URL is a
  * serialized tree.
  * UrlTree is a data structure that provides a lot of affordances in dealing with URLs
  *
- * 由于路由器状态是一棵树，而 URL 只是序列化的状态，所以 URL 就是序列化的树。 UrlTree 是一种数据结构，在处理 URL 时提供了很多便利
- *
  * @usageNotes
- *
  * ### Example
- *
- * ### 例子
  *
  * ```
  * @Component({templateUrl:'template.html'})
@@ -141,27 +218,16 @@ export class UrlTree {
  *
  * Represents the parsed URL segment group.
  *
- * 表示已解析的 URL 段组。
- *
  * See `UrlTree` for more information.
- *
- * 有关更多信息，请参见 `UrlTree`
  *
  * @publicApi
  */
 export class UrlSegmentGroup {
   /** @internal */
-  // TODO(issue/24571): remove '!'.
-  _sourceSegment!: UrlSegmentGroup;
+  _sourceSegment?: UrlSegmentGroup;
   /** @internal */
-  // TODO(issue/24571): remove '!'.
-  _segmentIndexShift!: number;
-  /**
-   * The parent node in the url tree
-   *
-   * 网址树中的父节点
-   *
-   */
+  _segmentIndexShift?: number;
+  /** The parent node in the url tree */
   parent: UrlSegmentGroup|null = null;
 
   constructor(
@@ -172,22 +238,12 @@ export class UrlSegmentGroup {
     forEach(children, (v: any, k: any) => v.parent = this);
   }
 
-  /**
-   * Whether the segment has child segments
-   *
-   * 该网址段是否有子段
-   *
-   */
+  /** Whether the segment has child segments */
   hasChildren(): boolean {
     return this.numberOfChildren > 0;
   }
 
-  /**
-   * Number of child segments
-   *
-   * 子段数
-   *
-   */
+  /** Number of child segments */
   get numberOfChildren(): number {
     return Object.keys(this.children).length;
   }
@@ -204,18 +260,11 @@ export class UrlSegmentGroup {
  *
  * Represents a single URL segment.
  *
- * 表示一个 URL 段。
- *
  * A UrlSegment is a part of a URL between the two slashes. It contains a path and the matrix
  * parameters associated with the segment.
  *
- * UrlSegment 是两个斜杠之间的 URL 的一部分。它包含路径和与该段关联的矩阵参数。
- *
  * @usageNotes
- *
- * ### Example
- *
- * ### 例子
+ * ### Example
  *
  * ```
  * @Component({templateUrl:'template.html'})
@@ -288,34 +337,18 @@ export function mapChildrenIntoArray<T>(
  *
  * Serializes and deserializes a URL string into a URL tree.
  *
- * 将 URL 字符串序列化和反序列化为 URL 树。
- *
  * The url serialization strategy is customizable. You can
  * make all URLs case insensitive by providing a custom UrlSerializer.
  *
- * url 序列化策略是可定制的。通过提供自定义 UrlSerializer，可以使所有 URL 都不区分大小写。
- *
  * See `DefaultUrlSerializer` for an example of a URL serializer.
- *
- * 有关 URL 序列化程序的示例，请参见 `DefaultUrlSerializer`
  *
  * @publicApi
  */
 export abstract class UrlSerializer {
-  /**
-   * Parse a url into a `UrlTree`
-   *
-   * 将网址解析为 `UrlTree`
-   *
-   */
+  /** Parse a url into a `UrlTree` */
   abstract parse(url: string): UrlTree;
 
-  /**
-   * Converts a `UrlTree` into a url
-   *
-   * 将 `UrlTree` 转换为 url
-   *
-   */
+  /** Converts a `UrlTree` into a url */
   abstract serialize(tree: UrlTree): string;
 }
 
@@ -324,11 +357,7 @@ export abstract class UrlSerializer {
  *
  * A default implementation of the `UrlSerializer`.
  *
- * `UrlSerializer` 的默认实现。
- *
  * Example URLs:
- *
- * 范例网址：
  *
  * ```
  * /inbox/33(popup:compose)
@@ -339,33 +368,21 @@ export abstract class UrlSerializer {
  * colon syntax to specify the outlet, and the ';parameter=value' syntax (e.g., open=true) to
  * specify route specific parameters.
  *
- * DefaultUrlSerializer 使用圆括号序列化辅助段（例如，popup:compose），使用冒号语法指定出口，并使用';parameter=value' 语法（例如 open=true）来指定路由的特有参数。
- *
  * @publicApi
  */
 export class DefaultUrlSerializer implements UrlSerializer {
-  /**
-   * Parses a url into a `UrlTree`
-   *
-   * 将网址解析为 `UrlTree`
-   *
-   */
+  /** Parses a url into a `UrlTree` */
   parse(url: string): UrlTree {
     const p = new UrlParser(url);
     return new UrlTree(p.parseRootSegment(), p.parseQueryParams(), p.parseFragment());
   }
 
-  /**
-   * Converts a `UrlTree` into a url
-   *
-   * 将 `UrlTree` 转换为 url
-   *
-   */
+  /** Converts a `UrlTree` into a url */
   serialize(tree: UrlTree): string {
     const segment = `/${serializeSegment(tree.root, true)}`;
     const query = serializeQueryParams(tree.queryParams);
     const fragment =
-        typeof tree.fragment === `string` ? `#${encodeUriFragment(tree.fragment!)}` : '';
+        typeof tree.fragment === `string` ? `#${encodeUriFragment(tree.fragment)}` : '';
 
     return `${segment}${query}${fragment}`;
   }
@@ -589,15 +606,15 @@ class UrlParser {
     return new UrlSegment(decode(path), this.parseMatrixParams());
   }
 
-  private parseMatrixParams(): {[key: string]: any} {
-    const params: {[key: string]: any} = {};
+  private parseMatrixParams(): {[key: string]: string} {
+    const params: {[key: string]: string} = {};
     while (this.consumeOptional(';')) {
       this.parseParam(params);
     }
     return params;
   }
 
-  private parseParam(params: {[key: string]: any}): void {
+  private parseParam(params: {[key: string]: string}): void {
     const key = matchSegments(this.remaining);
     if (!key) {
       return;

@@ -1,10 +1,10 @@
-import { Component, ElementRef, EventEmitter, HostListener, Input, OnDestroy, Output } from '@angular/core';
-import { Title } from '@angular/platform-browser';
+import { Component, ElementRef, EventEmitter, Input, OnDestroy, Output } from '@angular/core';
+import { Title, Meta } from '@angular/platform-browser';
 
 import { asapScheduler, Observable, of, timer } from 'rxjs';
 import { catchError, observeOn, switchMap, takeUntil, tap } from 'rxjs/operators';
 
-import { DocumentContents, FETCHING_ERROR_ID, FILE_NOT_FOUND_ID } from 'app/documents/document.service';
+import { DocumentContents, FILE_NOT_FOUND_ID, FETCHING_ERROR_ID } from 'app/documents/document.service';
 import { Logger } from 'app/shared/logger.service';
 import { TocService } from 'app/shared/toc.service';
 import { ElementsLoader } from 'app/custom-elements/elements-loader';
@@ -19,7 +19,7 @@ const initialDocViewerContent = initialDocViewerElement ? initialDocViewerElemen
 
 @Component({
   selector: 'aio-doc-viewer',
-  template: '',
+  template: ''
   // TODO(robwormald): shadow DOM and emulated don't work here (?!)
   // encapsulation: ViewEncapsulation.ShadowDom
 })
@@ -62,11 +62,12 @@ export class DocViewerComponent implements OnDestroy {
   @Output() docRendered = new EventEmitter<void>();
 
   constructor(
-    elementRef: ElementRef,
-    private  logger: Logger,
-    private titleService: Title,
-    private tocService: TocService,
-    private elementsLoader: ElementsLoader) {
+      elementRef: ElementRef,
+      private logger: Logger,
+      private titleService: Title,
+      private metaService: Meta,
+      private tocService: TocService,
+      private elementsLoader: ElementsLoader) {
     this.hostElement = elementRef.nativeElement;
     // Security: the initialDocViewerContent comes from the prerendered DOM and is considered to be secure
     this.hostElement.innerHTML = initialDocViewerContent;
@@ -76,10 +77,12 @@ export class DocViewerComponent implements OnDestroy {
     }
 
     this.docContents$
-      .pipe(observeOn(asapScheduler),switchMap(newDoc => this.render(newDoc)),
-        takeUntil(this.onDestroy$),
-      )
-      .subscribe();
+        .pipe(
+            observeOn(asapScheduler),
+            switchMap(newDoc => this.render(newDoc)),
+            takeUntil(this.onDestroy$),
+        )
+        .subscribe();
   }
 
   ngOnDestroy() {
@@ -95,9 +98,9 @@ export class DocViewerComponent implements OnDestroy {
     const needsToc = !!titleEl && !/no-?toc/i.test(titleEl.className);
     const embeddedToc = targetElem.querySelector('aio-toc.embedded');
 
-    if (needsToc && !embeddedToc) {
+    if (titleEl && needsToc && !embeddedToc) {
       // Add an embedded ToC if it's needed and there isn't one in the content already.
-      titleEl!.insertAdjacentHTML('afterend', '<aio-toc class="embedded"></aio-toc>');
+      titleEl.insertAdjacentHTML('afterend', '<aio-toc class="embedded"></aio-toc>');
     } else if (!needsToc && embeddedToc && embeddedToc.parentNode !== null) {
       // Remove the embedded Toc if it's there and not needed.
       // We cannot use ChildNode.remove() because of IE11
@@ -106,7 +109,7 @@ export class DocViewerComponent implements OnDestroy {
 
     return () => {
       this.tocService.reset();
-      let title: string | null = '';
+      let title: string|null = '';
 
       // Only create ToC for docs with an `<h1>` heading.
       // If you don't want a ToC, add "no-toc" class to `<h1>`.
@@ -131,22 +134,29 @@ export class DocViewerComponent implements OnDestroy {
     this.setNoIndex(doc.id === FILE_NOT_FOUND_ID || doc.id === FETCHING_ERROR_ID);
 
     return this.void$.pipe(
-      // Security: `doc.contents` is always authored by the documentation team
-      //           and is considered to be safe.
-      tap(() => this.nextViewContainer.innerHTML = doc.contents || ''),
-      tap(() => addTitleAndToc = this.prepareTitleAndToc(this.nextViewContainer, doc.id)),
-      switchMap(() => this.elementsLoader.loadContainedCustomElements(this.nextViewContainer)),
-      tap(() => this.docReady.emit())
-      ,
-      switchMap(() => this.swapViews(addTitleAndToc)),
-      tap(() => this.docRendered.emit()),
-      catchError(err => {
-        const errorMessage = (err instanceof Error) ? err.stack : err;
-        this.logger.error(new Error(`[DocViewer] Error preparing document '${doc.id}': ${errorMessage}`));
-        this.nextViewContainer.innerHTML = '';
-        this.setNoIndex(true);
-        return this.void$;
-      }),
+        // Security: `doc.contents` is always authored by the documentation team
+        //           and is considered to be safe.
+        tap(() => this.nextViewContainer.innerHTML = doc.contents || ''),
+        tap(() => addTitleAndToc = this.prepareTitleAndToc(this.nextViewContainer, doc.id)),
+        switchMap(() => this.elementsLoader.loadContainedCustomElements(this.nextViewContainer)),
+        tap(() => this.docReady.emit()),
+        switchMap(() => this.swapViews(addTitleAndToc)),
+        tap(() => this.docRendered.emit()),
+        catchError(err => {
+          const errorMessage = `${(err instanceof Error) ? err.stack : err}`;
+          this.logger.error(new Error(`[DocViewer] Error preparing document '${doc.id}': ${errorMessage}`));
+          this.nextViewContainer.innerHTML = '';
+          this.setNoIndex(true);
+
+          // TODO(gkalpak): Remove this once gathering debug info is no longer needed.
+          if (/loading chunk \d+ failed/i.test(errorMessage)) {
+            // Print some info to help with debugging.
+            // (There is no reason to wait for this async call to complete before continuing.)
+            printSwDebugInfo();
+          }
+
+          return this.void$;
+        }),
     );
   }
 
@@ -154,7 +164,11 @@ export class DocViewerComponent implements OnDestroy {
    * Tell search engine crawlers whether to index this page
    */
   private setNoIndex(val: boolean) {
-    console.log('no index: ', val);
+    if (val) {
+      this.metaService.addTag({ name: 'robots', content: 'noindex' });
+    } else {
+      this.metaService.removeTag('name="robots"');
+    }
   }
 
   /**
@@ -166,8 +180,7 @@ export class DocViewerComponent implements OnDestroy {
    * entering animation has been completed. This is useful for work that needs to be done as soon as
    * the element has been attached to the DOM.
    */
-  protected swapViews(onInsertedCb = () => {
-  }): Observable<void> {
+  protected swapViews(onInsertedCb = () => {}): Observable<void> {
     const raf$ = new Observable<void>(subscriber => {
       const rafId = requestAnimationFrame(() => {
         subscriber.next();
@@ -191,24 +204,23 @@ export class DocViewerComponent implements OnDestroy {
     type StringValueCSSStyleDeclaration
       = Exclude<{ [K in keyof CSSStyleDeclaration]: CSSStyleDeclaration[K] extends string ? K : never }[keyof CSSStyleDeclaration], number>;
     const animateProp =
-      (elem: HTMLElement, prop: StringValueCSSStyleDeclaration, from: string, to: string, duration = 200) => {
-        const animationsDisabled = !DocViewerComponent.animationsEnabled
-          || this.hostElement.classList.contains(NO_ANIMATIONS);
-
-        elem.style.transition = '';
-        return animationsDisabled
-          ? this.void$.pipe(tap(() => elem.style[prop] = to))
-          : this.void$.pipe(
-            // In order to ensure that the `from` value will be applied immediately (i.e.
-            // without transition) and that the `to` value will be affected by the
-            // `transition` style, we need to ensure an animation frame has passed between
-            // setting each style.
-            switchMap(() => raf$), tap(() => elem.style[prop] = from),
-            switchMap(() => raf$), tap(() => elem.style.transition = `all ${duration}ms ease-in-out`),
-            switchMap(() => raf$), tap(() => elem.style[prop] = to),
-            switchMap(() => timer(getActualDuration(elem))), switchMap(() => this.void$),
-          );
-      };
+        (elem: HTMLElement, prop: StringValueCSSStyleDeclaration, from: string, to: string, duration = 200) => {
+          const animationsDisabled = !DocViewerComponent.animationsEnabled
+                                     || this.hostElement.classList.contains(NO_ANIMATIONS);
+          elem.style.transition = '';
+          return animationsDisabled
+              ? this.void$.pipe(tap(() => elem.style[prop] = to))
+              : this.void$.pipe(
+                    // In order to ensure that the `from` value will be applied immediately (i.e.
+                    // without transition) and that the `to` value will be affected by the
+                    // `transition` style, we need to ensure an animation frame has passed between
+                    // setting each style.
+                    switchMap(() => raf$), tap(() => elem.style[prop] = from),
+                    switchMap(() => raf$), tap(() => elem.style.transition = `all ${duration}ms ease-in-out`),
+                    switchMap(() => raf$), tap(() => elem.style[prop] = to),
+                    switchMap(() => timer(getActualDuration(elem))), switchMap(() => this.void$),
+                );
+        };
 
     const animateLeave = (elem: HTMLElement) => animateProp(elem, 'opacity', '1', '0.1');
     const animateEnter = (elem: HTMLElement) => animateProp(elem, 'opacity', '0.1', '1');
@@ -217,51 +229,86 @@ export class DocViewerComponent implements OnDestroy {
 
     if (this.currViewContainer.parentElement) {
       done$ = done$.pipe(
-        // Remove the current view from the viewer.
-        switchMap(() => animateLeave(this.currViewContainer)),
-        tap(() => this.currViewContainer.parentElement!.removeChild(this.currViewContainer)),
-        tap(() => this.docRemoved.emit()),
+          // Remove the current view from the viewer.
+          switchMap(() => animateLeave(this.currViewContainer)),
+          tap(() => (this.currViewContainer.parentElement as HTMLElement).removeChild(this.currViewContainer)),
+          tap(() => this.docRemoved.emit()),
       );
     }
 
     return done$.pipe(
-      // Insert the next view into the viewer.
-      tap(() => this.hostElement.appendChild(this.nextViewContainer)),
-      tap(() => onInsertedCb()),
-      tap(() => this.docInserted.emit()),
-      switchMap(() => animateEnter(this.nextViewContainer)),
-      // Update the view references and clean up unused nodes.
-      tap(() => {
-        const prevViewContainer = this.currViewContainer;
-        this.currViewContainer = this.nextViewContainer;
-        this.nextViewContainer = prevViewContainer;
-        this.nextViewContainer.innerHTML = '';  // Empty to release memory.
-      }),
+        // Insert the next view into the viewer.
+        tap(() => this.hostElement.appendChild(this.nextViewContainer)),
+        tap(() => onInsertedCb()),
+        tap(() => this.docInserted.emit()),
+        switchMap(() => animateEnter(this.nextViewContainer)),
+        // Update the view references and clean up unused nodes.
+        tap(() => {
+          const prevViewContainer = this.currViewContainer;
+          this.currViewContainer = this.nextViewContainer;
+          this.nextViewContainer = prevViewContainer;
+          this.nextViewContainer.innerHTML = '';  // Empty to release memory.
+        }),
     );
   }
+}
 
-  @HostListener('click', ['$event'])
-  toggleTranslationOrigin($event: MouseEvent): void {
-    const element = findTranslationResult($event.target as Element);
-    if (element && element.hasAttribute('translation-result')) {
-      const origin = element.nextElementSibling;
-      if (!origin || origin.hasAttribute('translation-result') || origin.tagName !== element.tagName) {
-        return;
-      }
+// Helpers
+/**
+ * Print some info regarding the ServiceWorker and the caches contents to help debugging potential
+ * issues with failing to find resources in the cache.
+ * (See https://github.com/angular/angular/issues/28114.)
+ */
+async function printSwDebugInfo(): Promise<void> {
+  console.log(`\nServiceWorker: ${navigator.serviceWorker?.controller?.state ?? 'N/A'}`);
 
-      if (origin.getAttribute('translation-origin') === 'on') {
-        origin.setAttribute('translation-origin', 'off');
-      } else {
-        origin.setAttribute('translation-origin', 'on');
-      }
+  if (typeof caches === 'undefined') {
+    console.log('\nCaches: N/A');
+  } else {
+    const allCacheNames = await caches.keys();
+    const swCacheNames = allCacheNames.filter(name => name.startsWith('ngsw:/:'));
+
+    await findCachesAndPrintEntries(swCacheNames, 'db:control', true, ['manifests']);
+    await findCachesAndPrintEntries(swCacheNames, 'assets:app-shell:cache', false);
+    await findCachesAndPrintEntries(swCacheNames, 'assets:app-shell:meta', true);
+  }
+
+  console.warn(
+      '\nIf you see this error, please report an issue at ' +
+      'https://github.com/angular/angular/issues/new?template=3-docs-bug.md including the above logs.');
+
+  // Internal helpers
+  async function findCachesAndPrintEntries(
+      swCacheNames: string[], nameSuffix: string, includeValues: boolean,
+      ignoredKeys: string[] = []): Promise<void> {
+    const cacheNames = swCacheNames.filter(name => name.endsWith(nameSuffix));
+
+    for (const cacheName of cacheNames) {
+      const cacheEntries = await getCacheEntries(cacheName, includeValues, ignoredKeys);
+      await printCacheEntries(cacheName, cacheEntries);
     }
   }
 
-}
+  async function getCacheEntries(
+      name: string, includeValues: boolean,
+      ignoredKeys: string[] = []): Promise<{key: string, value?: object}[]> {
+    const ignoredUrls = new Set(ignoredKeys.map(key => new Request(key).url));
 
-function findTranslationResult(element: Element | null): Element | null {
-  while (element && !element.hasAttribute('translation-result')) {
-    element = element.parentElement;
+    const cache = await caches.open(name);
+    const keys = (await cache.keys()).map(req => req.url).filter(url => !ignoredUrls.has(url));
+    const entries = await Promise.all(keys.map(async key => ({
+      key,
+      value: !includeValues ? undefined : await (await cache.match(key))?.json(),
+    })));
+
+    return entries;
   }
-  return element;
+
+  function printCacheEntries(name: string, entries: {key: string, value?: object}[]): void {
+    const entriesStr = entries
+        .map(({key, value}) => `  - ${key}${!value ? '' : `: ${JSON.stringify(value)}`}`)
+        .join('\n');
+
+    console.log(`\nCache: ${name} (${entries.length} entries)\n${entriesStr}`);
+  }
 }

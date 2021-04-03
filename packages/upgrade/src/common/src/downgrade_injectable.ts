@@ -23,7 +23,6 @@ import {getTypeName, isFunction, validateInjectionKey} from './util';
  * service identified by the `token` parameter.
  *
  * @usageNotes
- *
  * ### Examples
  *
  * First ensure that the service to be downgraded is provided in an `NgModule`

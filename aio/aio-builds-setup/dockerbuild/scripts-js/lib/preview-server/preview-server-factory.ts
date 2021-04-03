@@ -2,17 +2,17 @@
 import * as bodyParser from 'body-parser';
 import * as express from 'express';
 import * as http from 'http';
-import { AddressInfo } from 'net';
-import { CircleCiApi } from '../common/circle-ci-api';
-import { GithubApi } from '../common/github-api';
-import { GithubPullRequests } from '../common/github-pull-requests';
-import { GithubTeams } from '../common/github-teams';
-import { assert, assertNotMissingOrEmpty, computeShortSha, Logger } from '../common/utils';
-import { BuildCreator } from './build-creator';
-import { ChangedPrVisibilityEvent, CreatedBuildEvent } from './build-events';
-import { BuildRetriever } from './build-retriever';
-import { BuildVerifier } from './build-verifier';
-import { respondWithError, throwRequestError } from './utils';
+import {AddressInfo} from 'net';
+import {CircleCiApi} from '../common/circle-ci-api';
+import {GithubApi} from '../common/github-api';
+import {GithubPullRequests} from '../common/github-pull-requests';
+import {GithubTeams} from '../common/github-teams';
+import {assert, assertNotMissingOrEmpty, computeShortSha, Logger} from '../common/utils';
+import {BuildCreator} from './build-creator';
+import {ChangedPrVisibilityEvent, CreatedBuildEvent} from './build-events';
+import {BuildRetriever} from './build-retriever';
+import {BuildVerifier} from './build-verifier';
+import {respondWithError, throwRequestError} from './utils';
 
 const AIO_PREVIEW_JOB = 'aio_preview';
 

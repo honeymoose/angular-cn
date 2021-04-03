@@ -1,4 +1,4 @@
-import {browser, by, element, ElementFinder,ExpectedConditions as EC } from 'protractor';
+import {browser, by, element, ElementFinder, ExpectedConditions as EC} from 'protractor';
 
 browser.waitForAngularEnabled(false);
 describe('Element E2E Tests', function () {

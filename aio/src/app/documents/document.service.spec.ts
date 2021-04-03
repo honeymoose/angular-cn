@@ -7,7 +7,8 @@ import { LocationService } from 'app/shared/location.service';
 import { MockLocationService } from 'testing/location.service';
 import { Logger } from 'app/shared/logger.service';
 import { MockLogger } from 'testing/logger.service';
-import { DocumentContents, DocumentService, FETCHING_ERROR_ID, FILE_NOT_FOUND_ID } from './document.service';
+import { DocumentService, DocumentContents,
+         FETCHING_ERROR_ID, FILE_NOT_FOUND_ID } from './document.service';
 
 
 const CONTENT_URL_PREFIX = 'generated/docs/';

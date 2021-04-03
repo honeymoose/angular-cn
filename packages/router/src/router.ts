@@ -27,7 +27,7 @@ import {ChildrenOutletContexts} from './router_outlet_context';
 import {ActivatedRoute, createEmptyState, RouterState, RouterStateSnapshot} from './router_state';
 import {isNavigationCancelingError, navigationCancelingError, Params} from './shared';
 import {DefaultUrlHandlingStrategy, UrlHandlingStrategy} from './url_handling_strategy';
-import {containsTree, createEmptyUrlTree, UrlSerializer, UrlTree} from './url_tree';
+import {containsTree, createEmptyUrlTree, IsActiveMatchOptions, UrlSerializer, UrlTree} from './url_tree';
 import {standardizeConfig, validateConfig} from './utils/config';
 import {Checks, getAllRouteGuards} from './utils/preactivation';
 import {isUrlTree} from './utils/type_guards';
@@ -41,19 +41,9 @@ import {isUrlTree} from './utils/type_guards';
  * Supply an object containing any of these properties to a `Router` navigation function to
  * control how the target URL should be constructed.
  *
- * 本选项用来修改 `Router` 的 URL。向 `Router` 导航功能提供包含任何这些属性的对象，以控制应如何构造目标 URL。
- *
  * @see [Router.navigate() method](api/router/Router#navigate)
- *
- * [Router.navigate() 方法](api/router/Router#navigate)
- *
  * @see [Router.createUrlTree() method](api/router/Router#createurltree)
- *
- * [Router.createUrlTree() 方法](api/router/Router#createurltree)
- *
  * @see [Routing and Navigation guide](guide/router)
- *
- * 用于修订导航策略的额外选项。
  *
  * @publicApi
  */
@@ -61,12 +51,8 @@ export interface UrlCreationOptions {
   /**
    * Specifies a root URI to use for relative navigation.
    *
-   * 允许从当前激活的路由进行相对导航。
-   *
    * For example, consider the following route configuration where the parent route
    * has two children.
-   *
-   * 比如，考虑下列路由器配置，parent 路由拥有两个子路由。
    *
    * ```
    * [{
@@ -85,8 +71,6 @@ export interface UrlCreationOptions {
    * The following `go()` function navigates to the `list` route by
    * interpreting the destination URI as relative to the activated `child`  route
    *
-   * 下面的 `go()` 函数会把目标 URI 解释为相对于已激活路由 `child` 的，从而导航到 `list` 路由。
-   *
    * ```
    *  @Component({...})
    *  class ChildComponent {
@@ -97,13 +81,14 @@ export interface UrlCreationOptions {
    *    }
    *  }
    * ```
+   *
+   * A value of `null` or `undefined` indicates that the navigation commands should be applied
+   * relative to the root.
    */
   relativeTo?: ActivatedRoute|null;
 
   /**
    * Sets query parameters to the URL.
-   *
-   * 设置 URL 的查询参数。
    *
    * ```
    * // Navigate to /results?page=1
@@ -115,8 +100,6 @@ export interface UrlCreationOptions {
   /**
    * Sets the hash fragment for the URL.
    *
-   * 设置 URL 的哈希片段（`#`）。
-   *
    * ```
    * // Navigate to /results#top
    * this.router.navigate(['/results'], { fragment: 'top' });
@@ -127,48 +110,29 @@ export interface UrlCreationOptions {
   /**
    * How to handle query parameters in the router link for the next navigation.
    * One of:
-   *
-   * 如何在路由器链接中处理查询参数以进行下一个导航。为下列值之一：
-   *
    * * `preserve` : Preserve current parameters.
-   *
-   *   `preserve` ：保留当前参数。
-   *
    * * `merge` : Merge new with current parameters.
    *
-   *   `merge` ：合并新的当前参数。
-   *
    * The "preserve" option discards any new query params:
-   *
-   * “preserve” 选项将放弃所有新的查询参数：
-   *
    * ```
    * // from /view1?page=1 to/view2?page=1
    * this.router.navigate(['/view2'], { queryParams: { page: 2 },  queryParamsHandling: "preserve"
    * });
    * ```
-   *
    * The "merge" option appends new query params to the params from the current URL:
-   *
-   * “merge” 选项会将新的查询参数附加到当前 URL 的参数中：
-   *
    * ```
    * // from /view1?page=1 to/view2?page=1&otherKey=2
    * this.router.navigate(['/view2'], { queryParams: { otherKey: 2 },  queryParamsHandling: "merge"
    * });
    * ```
-   *
    * In case of a key collision between current parameters and those in the `queryParams` object,
    * the new value is used.
    *
-   * `queryParams` 对象中的参数之间发生键名冲突，则使用新值。
    */
   queryParamsHandling?: QueryParamsHandling|null;
 
   /**
    * When true, preserves the URL fragment for the next navigation
-   *
-   * 在后续导航时保留 `#` 片段
    *
    * ```
    * // Preserve fragment from /results#top to /view#top
@@ -185,27 +149,15 @@ export interface UrlCreationOptions {
  * Supply an object containing any of these properties to a `Router` navigation function to
  * control how the navigation should be handled.
  *
- * 修改 `Router` 导航策略的选项。为 `Router` 导航功能提供包含任何这些属性的对象，以控制导航的处理方式。
- *
  * @see [Router.navigate() method](api/router/Router#navigate)
- *
- * [Router.navigate() 方法](api/router/Router#navigate)
- *
  * @see [Router.navigateByUrl() method](api/router/Router#navigatebyurl)
- *
- * [Router.navigateByUrl() 方法](api/router/Router#navigatebyurl)
- *
  * @see [Routing and Navigation guide](guide/router)
- *
- * [路由和导航指南](guide/router)
  *
  * @publicApi
  */
 export interface NavigationBehaviorOptions {
   /**
    * When true, navigates without pushing a new state into history.
-   *
-   * 导航时不要把新状态记入历史
    *
    * ```
    * // Navigate silently to /view
@@ -216,8 +168,6 @@ export interface NavigationBehaviorOptions {
 
   /**
    * When true, navigates while replacing the current state in history.
-   *
-   * 导航时不要把当前状态记入历史
    *
    * ```
    * // Navigate to /view
@@ -232,19 +182,13 @@ export interface NavigationBehaviorOptions {
    * returned from the [Router.getCurrentNavigation()
    * method](api/router/Router#getcurrentnavigation) while a navigation is executing.
    *
-   * 由开发人员定义的状态，可以传递给任何导航。当执行导航时会通过由 [Router.getCurrentNavigation() 方法](api/router/Router#getcurrentnavigation)返回的 `Navigation.extras` 对象来访问此值。
-   *
    * After a navigation completes, the router writes an object containing this
    * value together with a `navigationId` to `history.state`.
    * The value is written when `location.go()` or `location.replaceState()`
    * is called before activating this route.
    *
-   * 导航完成后，路由器会将包含该值和 `navigationId` 的对象写入 `history.state`。在激活此路由之前，会在调用 `location.go()` 或 `location.replaceState()` 时写入该值。
-   *
    * Note that `history.state` does not pass an object equality test because
    * the router adds the `navigationId` on each navigation.
-   *
-   * 需要注意的是 `history.state` 不应该用于对象相等测试，因为每次导航时路由器都会添加 `navigationId`。
    *
    */
   state?: {[k: string]: any};
@@ -257,24 +201,10 @@ export interface NavigationBehaviorOptions {
  * Supply an object containing any of these properties to a `Router` navigation function to
  * control how the target URL should be constructed or interpreted.
  *
- * 修改 `Router` 导航策略的选项。为 `Router` 导航功能提供包含任何这些属性的对象，以控制应如何构造或解释目标 URL。
- *
  * @see [Router.navigate() method](api/router/Router#navigate)
- *
- * [Router.navigate() 方法](api/router/Router#navigate)
- *
  * @see [Router.navigateByUrl() method](api/router/Router#navigatebyurl)
- *
- * [Router.navigateByUrl() 方法](api/router/Router#navigatebyurl)
- *
  * @see [Router.createUrlTree() method](api/router/Router#createurltree)
- *
- * [Router.createUrlTree() 方法](api/router/Router#createurltree)
- *
  * @see [Routing and Navigation guide](guide/router)
- *
- * [路由和导航指南](guide/router)
- *
  * @see UrlCreationOptions
  * @see NavigationBehaviorOptions
  *
@@ -285,14 +215,9 @@ export interface NavigationExtras extends UrlCreationOptions, NavigationBehavior
 /**
  * Error handler that is invoked when a navigation error occurs.
  *
- * 错误处理器会在导航出错时调用。
- *
  * If the handler returns a value, the navigation Promise is resolved with this value.
  * If the handler throws an exception, the navigation Promise is rejected with
  * the exception.
- *
- * 如果该处理器返回一个值，那么本次导航返回的 Promise 就会使用这个值进行解析（resolve）。
- * 如果该处理器抛出异常，那么本次导航返回的 Promise 就会使用这个异常进行拒绝（reject）。
  *
  * @publicApi
  */
@@ -316,114 +241,62 @@ export type RestoredState = {
  * Retrieve the most recent navigation object with the
  * [Router.getCurrentNavigation() method](api/router/Router#getcurrentnavigation) .
  *
- * 有关导航操作的信息。使用 [Router.getCurrentNavigation() 方法](api/router/Router#getcurrentnavigation)检索最新的导航对象。
- *
  * * *id* : The unique identifier of the current navigation.
- *
- *   *id* ：当前导航的唯一标识符。
- *
  * * *initialUrl* : The target URL passed into the `Router#navigateByUrl()` call before navigation.
  * This is the value before the router has parsed or applied redirects to it.
- *
- *     *initialUrl*：在导航前传给 `Router#navigateByUrl()` 调用的目标 URL。这是路由器解析或对其应用重定向之前的值。
- *
  * * *extractedUrl* : The initial target URL after being parsed with `UrlSerializer.extract()`.
- *
- *   *extractedUrl*：使用 `UrlSerializer.extract()` 解析后的初始目标 URL。
- *
  * * *finalUrl* : The extracted URL after redirects have been applied.
  * This URL may not be available immediately, therefore this property can be `undefined`.
  * It is guaranteed to be set after the `RoutesRecognized` event fires.
- *
- *     *finalUrl*：应用重定向之后提取的 URL。该 URL 可能不会立即可用，因此该属性也可以是 `undefined`。在 `RoutesRecognized` 事件触发后进行设置。
- *
  * * *trigger* : Identifies how this navigation was triggered.
  * -- 'imperative'--Triggered by `router.navigateByUrl` or `router.navigate`.
  * -- 'popstate'--Triggered by a popstate event.
  * -- 'hashchange'--Triggered by a hashchange event.
- *
- *   *trigger*：表明这次导航是如何触发的。
- *   \-- 'imperative'-- 由 `router.navigateByUrl` 或 `router.navigate` 触发。
- *   \-- 'popstate'-- 由 popstate 事件触发。
- *   \-- 'hashchange'-- 由 hashchange 事件触发。
- *
  * * *extras* : A `NavigationExtras` options object that controlled the strategy used for this
  * navigation.
- *
- *     *extras*：一个 `NavigationExtras` 选项对象，它控制用于此导航的策略。
- *
  * * *previousNavigation* : The previously successful `Navigation` object. Only one previous
  * navigation is available, therefore this previous `Navigation` object has a `null` value for its
  * own `previousNavigation`.
  *
- *     *previousNavigation*：先前成功的 `Navigation` 对象。只有一个先前的导航可用，因此该先前的 `Navigation` 对象自己的 `previousNavigation` 值为 `null`。
  * @publicApi
  */
 export type Navigation = {
   /**
    * The unique identifier of the current navigation.
-   *
-   * 当前导航的唯一标识符。
-   *
    */
   id: number;
   /**
    * The target URL passed into the `Router#navigateByUrl()` call before navigation. This is
    * the value before the router has parsed or applied redirects to it.
-   *
-   * 导航之前，将目标 URL 传递到 `Router#navigateByUrl()` 调用中。这是路由器解析或对其应用重定向之前的值。
-   *
    */
   initialUrl: string | UrlTree;
   /**
    * The initial target URL after being parsed with `UrlSerializer.extract()`.
-   *
-   * `UrlSerializer.extract()` 解析后的初始目标 URL。
-   *
    */
   extractedUrl: UrlTree;
   /**
    * The extracted URL after redirects have been applied.
    * This URL may not be available immediately, therefore this property can be `undefined`.
    * It is guaranteed to be set after the `RoutesRecognized` event fires.
-   *
-   * 应用重定向后的已提取 URL。该 URL 可能不会立即可用，因此该属性也可能是 `undefined`。这会在 `RoutesRecognized` 事件触发后进行设置。
-   *
    */
   finalUrl?: UrlTree;
   /**
    * Identifies how this navigation was triggered.
    *
-   * 标识此导航是如何触发的。
-   *
    * * 'imperative'--Triggered by `router.navigateByUrl` or `router.navigate`.
-   *
-   *   'imperative' - 由 `router.navigateByUrl` 或 `router.navigate` 触发。
-   *
    * * 'popstate'--Triggered by a popstate event.
-   *
-   *   'popstate'-由 popstate 事件触发。
-   *
    * * 'hashchange'--Triggered by a hashchange event.
-   *
-   *   'hashchange' - 由 hashchange 事件触发。
    */
   trigger: 'imperative' | 'popstate' | 'hashchange';
   /**
    * Options that controlled the strategy used for this navigation.
    * See `NavigationExtras`.
-   *
-   * 本选项控制用于此导航的策略。请参阅 `NavigationExtras` 。
-   *
    */
   extras: NavigationExtras;
   /**
    * The previously successful `Navigation` object. Only one previous navigation
    * is available, therefore this previous `Navigation` object has a `null` value
    * for its own `previousNavigation`.
-   *
-   * 先前成功的 `Navigation` 对象。只有一个先前的导航可用，因此该先前 `Navigation` 对象自己的 `previousNavigation` 值为 `null`。
-   *
    */
   previousNavigation: Navigation | null;
 };
@@ -484,16 +357,35 @@ type LocationChangeInfo = {
 };
 
 /**
+ * The equivalent `IsActiveUrlTreeOptions` options for `Router.isActive` is called with `true`
+ * (exact = true).
+ */
+export const exactMatchOptions: IsActiveMatchOptions = {
+  paths: 'exact',
+  fragment: 'ignored',
+  matrixParams: 'ignored',
+  queryParams: 'exact'
+};
+
+/**
+ * The equivalent `IsActiveUrlTreeOptions` options for `Router.isActive` is called with `false`
+ * (exact = false).
+ */
+export const subsetMatchOptions: IsActiveMatchOptions = {
+  paths: 'subset',
+  fragment: 'ignored',
+  matrixParams: 'ignored',
+  queryParams: 'subset'
+};
+
+
+/**
  * @description
  *
  * A service that provides navigation among views and URL manipulation capabilities.
  *
- * 一个提供导航和操纵 URL 能力的 NgModule。
- *
  * @see `Route`.
  * @see [Routing and Navigation Guide](guide/router).
- *
- * [路由与导航](guide/router)。
  *
  * @ngModule RouterModule
  *
@@ -508,14 +400,12 @@ export class Router {
   private navigations: Observable<NavigationTransition>;
   private lastSuccessfulNavigation: Navigation|null = null;
   private currentNavigation: Navigation|null = null;
+  private disposed = false;
 
   private locationSubscription?: SubscriptionLike;
   /**
    * Tracks the previously seen location change from the location subscription so we can compare
    * the two latest to see if they are duplicates. See setUpLocationChangeListener.
-   *
-   * 跟踪 location 订阅中以前看到的 location 更改，因此我们可以比较两个最新的位置更改是否重复。请参阅 setUpLocationChangeListener。
-   *
    */
   private lastLocationChangeInfo: LocationChangeInfo|null = null;
   private navigationId: number = 0;
@@ -526,24 +416,15 @@ export class Router {
 
   /**
    * An event stream for routing events in this NgModule.
-   *
-   * 用于表示此 NgModule 中路由事件的事件流。
-   *
    */
   public readonly events: Observable<Event> = new Subject<Event>();
   /**
    * The current state of routing in this NgModule.
-   *
-   * 此 NgModule 中路由的当前状态。
-   *
    */
   public readonly routerState: RouterState;
 
   /**
    * A handler for navigation errors in this NgModule.
-   *
-   * 本模块中的导航错误处理器。
-   *
    */
   errorHandler: ErrorHandler = defaultErrorHandler;
 
@@ -552,9 +433,6 @@ export class Router {
    * when `url` contains an invalid character.
    * The most common case is a `%` sign
    * that's not encoded and is not part of a percent encoded sequence.
-   *
-   * uri 格式无效错误的处理器，在 `Router.parseUrl(url)` 由于 `url` 包含无效字符而报错时调用。
-   * 最常见的情况可能是 `%` 本身既没有被编码，又不是正常 `%` 编码序列的一部分。
    */
   malformedUriErrorHandler:
       (error: URIError, urlSerializer: UrlSerializer,
@@ -563,8 +441,6 @@ export class Router {
   /**
    * True if at least one navigation event has occurred,
    * false otherwise.
-   *
-   * 如果为 True 则表示是否发生过至少一次导航，反之为 False。
    */
   navigated: boolean = false;
   private lastSuccessfulId: number = -1;
@@ -573,8 +449,6 @@ export class Router {
    * Hooks that enable you to pause navigation,
    * either before or after the preactivation phase.
    * Used by `RouterModule`.
-   *
-   * 让你可以在预激活阶段之前或之后暂停导航的钩子。由 `RouterModule` 使用。
    *
    * @internal
    */
@@ -586,32 +460,18 @@ export class Router {
   /**
    * A strategy for extracting and merging URLs.
    * Used for AngularJS to Angular migrations.
-   *
-   * 提取并合并 URL。在 AngularJS 向 Angular 迁移时会用到。
    */
   urlHandlingStrategy: UrlHandlingStrategy = new DefaultUrlHandlingStrategy();
 
   /**
    * A strategy for re-using routes.
-   *
-   * 复用路由的策略。
-   *
    */
   routeReuseStrategy: RouteReuseStrategy = new DefaultRouteReuseStrategy();
 
   /**
    * How to handle a navigation request to the current URL. One of:
-   *
-   * 定义当路由器收到一个导航到当前 URL 的请求时应该怎么做。可取下列值之一：
-   *
    * - `'ignore'` :  The router ignores the request.
-   *
-   *   `'ignore'`：路由器会忽略此请求。
-   *
    * - `'reload'` : The router reloads the URL. Use to implement a "refresh" feature.
-   *
-   *   `'reload'`：路由器会重新加载当前 URL。用来实现"刷新"功能。
-   *
    */
   onSameUrlNavigation: 'reload'|'ignore' = 'ignore';
 
@@ -619,18 +479,10 @@ export class Router {
    * How to merge parameters, data, and resolved data from parent to child
    * routes. One of:
    *
-   * 如何从父路由向子路由合并参数、数据和解析到的数据。可取下列值之一：
-   *
    * - `'emptyOnly'` : Inherit parent parameters, data, and resolved data
    * for path-less or component-less routes.
-   *
-   *   `'emptyOnly'`：让无路径或无组件的路由继承父级的参数、数据和解析到的数据。
-   *
    * - `'always'` : Inherit parent parameters, data, and resolved data
    * for all child routes.
-   *
-   *   `'always'`：让所有子路由都继承父级的参数、数据和解析到的数据。
-   *
    */
   paramsInheritanceStrategy: 'emptyOnly'|'always' = 'emptyOnly';
 
@@ -640,25 +492,17 @@ export class Router {
    * Set to `'eager'` to update the browser URL at the beginning of navigation.
    * You can choose to update early so that, if navigation fails,
    * you can show an error message with the URL that failed.
-   *
-   * 确定路由器何时更新浏览器 URL。默认情况下（`"deferred"`）在导航完成后更新浏览器 URL。设置为 `'eager'` 可以在浏览开始时更新浏览器 URL。你可以选择早期更新，这样，如果导航失败，则可以显示带有失败 URL 的错误消息。
-   *
    */
   urlUpdateStrategy: 'deferred'|'eager' = 'deferred';
 
   /**
    * Enables a bug fix that corrects relative link resolution in components with empty paths.
-   *
-   * 启用错误修复功能，以更正带空路径的组件中的相对链接。
-   *
    * @see `RouterModule`
    */
   relativeLinkResolution: 'legacy'|'corrected' = 'corrected';
 
   /**
    * Creates the router service.
-   *
-   * 创建路由器服务。
    */
   // TODO: vsavkin make internal after the final is out.
   constructor(
@@ -671,7 +515,7 @@ export class Router {
     this.ngModule = injector.get(NgModuleRef);
     this.console = injector.get(Console);
     const ngZone = injector.get(NgZone);
-    this.isNgZoneEnabled = ngZone instanceof NgZone;
+    this.isNgZoneEnabled = ngZone instanceof NgZone && NgZone.isInAngularZone();
 
     this.resetConfig(config);
     this.currentUrlTree = createEmptyUrlTree();
@@ -753,12 +597,11 @@ export class Router {
                                if (transition !== this.transitions.getValue()) {
                                  return EMPTY;
                                }
-                               return [t];
-                             }),
 
-                             // This delay is required to match old behavior that forced navigation
-                             // to always be async
-                             switchMap(t => Promise.resolve(t)),
+                               // This delay is required to match old behavior that forced
+                               // navigation to always be async
+                               return Promise.resolve(t);
+                             }),
 
                              // ApplyRedirects
                              applyRedirects(
@@ -789,10 +632,8 @@ export class Router {
                                  }
                                  this.browserUrlTree = t.urlAfterRedirects;
                                }
-                             }),
 
-                             // Fire RoutesRecognized
-                             tap(t => {
+                               // Fire RoutesRecognized
                                const routesRecognized = new RoutesRecognized(
                                    t.id, this.serializeUrl(t.extractedUrl),
                                    this.serializeUrl(t.urlAfterRedirects), t.targetSnapshot!);
@@ -872,9 +713,7 @@ export class Router {
                          error.url = t.guardsResult;
                          throw error;
                        }
-                     }),
 
-                     tap(t => {
                        const guardsEnd = new GuardsCheckEnd(
                            t.id, this.serializeUrl(t.extractedUrl),
                            this.serializeUrl(t.urlAfterRedirects), t.targetSnapshot!,
@@ -1004,7 +843,7 @@ export class Router {
                          // navigation completes, there will be nothing in
                          // history.state.navigationId. This can cause sync problems with AngularJS
                          // sync code which looks for a value here in order to determine whether or
-                         // not to handle a given popstate event or to leave it to the Angualr
+                         // not to handle a given popstate event or to leave it to the Angular
                          // router.
                          this.resetUrlToCurrentUrlTree();
                          const navCancel = new NavigationCancel(
@@ -1055,7 +894,7 @@ export class Router {
                                replaceUrl: this.urlUpdateStrategy === 'eager'
                              };
 
-                             return this.scheduleNavigation(
+                             this.scheduleNavigation(
                                  mergedTree, 'imperative', null, extras,
                                  {resolve: t.resolve, reject: t.reject, promise: t.promise});
                            }, 0);
@@ -1106,8 +945,6 @@ export class Router {
 
   /**
    * Sets up the location change listener and performs the initial navigation.
-   *
-   * 设置位置变化监听器，并执行首次导航。
    */
   initialNavigation(): void {
     this.setUpLocationChangeListener();
@@ -1120,9 +957,6 @@ export class Router {
    * Sets up the location change listener. This listener detects navigations triggered from outside
    * the Router (the browser back/forward buttons, for example) and schedules a corresponding Router
    * navigation so that the correct events, guards, etc. are triggered.
-   *
-   * 设置 location 更改监听器。该监听器检测从路由器外部触发的导航（例如，浏览器的后退/前进按钮），并安排相应的路由器导航，以便触发正确的事件、守卫等。
-   *
    */
   setUpLocationChangeListener(): void {
     // Don't need to use Zone.wrap any more, because zone.js
@@ -1152,12 +986,7 @@ export class Router {
     }
   }
 
-  /**
-   * Extracts router-related information from a `PopStateEvent`.
-   *
-   * 从 `PopStateEvent` 提取与路由器相关的信息。
-   *
-   */
+  /** Extracts router-related information from a `PopStateEvent`. */
   private extractLocationChangeInfoFromEvent(change: PopStateEvent): LocationChangeInfo {
     return {
       source: change['type'] === 'popstate' ? 'popstate' : 'hashchange',
@@ -1174,9 +1003,6 @@ export class Router {
    * navigation. The location subscription can fire two events (popstate and hashchange) for a
    * single navigation. The second one should be ignored, that is, we should not schedule another
    * navigation in the Router.
-   *
-   * 确定由 location 订阅触发的两个事件是否是由相同的导航引起的。location 订阅可以为单次导航触发两个事件（popstate 和 hashchange）。第二个应该被忽略，也就是说，我们不应该在路由器中安排另一个导航。
-   *
    */
   private shouldScheduleNavigation(previous: LocationChangeInfo|null, current: LocationChangeInfo):
       boolean {
@@ -1196,20 +1022,12 @@ export class Router {
     return true;
   }
 
-  /** The current URL.
-   *
-   * 当前 URL
-   */
+  /** The current URL. */
   get url(): string {
     return this.serializeUrl(this.currentUrlTree);
   }
 
-  /**
-   * The current Navigation object if one exists
-   *
-   * 当前导航对象（如果存在）
-   *
-   */
+  /** The current Navigation object if one exists */
   getCurrentNavigation(): Navigation|null {
     return this.currentNavigation;
   }
@@ -1222,11 +1040,7 @@ export class Router {
   /**
    * Resets the route configuration used for navigation and generating links.
    *
-   * 重置供导航和生成链接使用的配置项。
-   *
    * @param config The route array for the new configuration.
-   *
-   * 新配置中的路由定义数组。
    *
    * @usageNotes
    *
@@ -1251,38 +1065,26 @@ export class Router {
     this.dispose();
   }
 
-  /** Disposes of the router.
-   *
-   * 销毁路由器
-   *
-   */
+  /** Disposes of the router. */
   dispose(): void {
+    this.transitions.complete();
     if (this.locationSubscription) {
       this.locationSubscription.unsubscribe();
       this.locationSubscription = undefined;
     }
+    this.disposed = true;
   }
 
   /**
    * Appends URL segments to the current URL tree to create a new URL tree.
-   *
-   * 将 URL 段添加到当前 URL 树中以创建新的 URL 树。
    *
    * @param commands An array of URL fragments with which to construct the new URL tree.
    * If the path is static, can be the literal URL string. For a dynamic path, pass an array of path
    * segments, followed by the parameters for each segment.
    * The fragments are applied to the current URL tree or the one provided  in the `relativeTo`
    * property of the options object, if supplied.
-   *
-   * 一个 URL 段的数组，用于构造新的 URL 树。如果此路径是静态的，则可能是 URL 字符串字面量。对于动态路径，可以传入一个路径段的数组，后跟每个段的参数。这些段会应用到当前 URL 树上，或者在选项对象中的 `relativeTo` 属性上（如果有）。
-   *
    * @param navigationExtras Options that control the navigation strategy.
-   *
-   * 控制导航策略的选项。
-   *
    * @returns The new URL tree.
-   *
-   * 新的 URL Tree。
    *
    * @usageNotes
    *
@@ -1316,6 +1118,9 @@ export class Router {
    *
    * // navigate to /team/44/user/22
    * router.createUrlTree(['../../team/44/user/22'], {relativeTo: route});
+   *
+   * Note that a value of `null` or `undefined` for `relativeTo` indicates that the
+   * tree should be created relative to the root.
    * ```
    */
   createUrlTree(commands: any[], navigationExtras: UrlCreationOptions = {}): UrlTree {
@@ -1337,34 +1142,22 @@ export class Router {
     if (q !== null) {
       q = this.removeEmptyProps(q);
     }
-    return createUrlTree(a, this.currentUrlTree, commands, q!, f!);
+    return createUrlTree(a, this.currentUrlTree, commands, q, f ?? null);
   }
 
   /**
    * Navigates to a view using an absolute route path.
    *
-   * 基于所提供的 URL 进行导航，必须使用绝对路径。
-   *
    * @param url An absolute path for a defined route. The function does not apply any delta to the
    *     current URL.
-   *
-   * 一个绝对 URL。该函数不会对当前 URL 做任何修改。
-   *
    * @param extras An object containing properties that modify the navigation strategy.
-   *
-   * 一个包含一组属性的对象，它会修改导航策略。
-   * 该函数会忽略 `NavigationExtras` 中任何可能会改变所提供的 URL 的属性
    *
    * @returns A Promise that resolves to 'true' when navigation succeeds,
    * to 'false' when navigation fails, or is rejected on error.
    *
-   *   一个 Promise，当导航成功时，它会解析成 `true`；导航失败或出错时，它会解析成 `false`。
-   *
    * @usageNotes
    *
    * The following calls request navigation to an absolute path.
-   *
-   * 以下调用要求导航到绝对路径。
    *
    * ```
    * router.navigateByUrl("/team/33/user/11");
@@ -1374,8 +1167,6 @@ export class Router {
    * ```
    *
    * @see [Routing and Navigation guide](guide/router)
-   *
-   * [路由和导航指南](guide/router)
    *
    */
   navigateByUrl(url: string|UrlTree, extras: NavigationBehaviorOptions = {
@@ -1397,33 +1188,21 @@ export class Router {
    * Navigate based on the provided array of commands and a starting point.
    * If no starting route is provided, the navigation is absolute.
    *
-   * 基于所提供的命令数组和起点路由进行导航。
-   * 如果没有指定起点路由，则从根路由开始进行绝对导航。
-   *
    * @param commands An array of URL fragments with which to construct the target URL.
    * If the path is static, can be the literal URL string. For a dynamic path, pass an array of path
    * segments, followed by the parameters for each segment.
    * The fragments are applied to the current URL or the one provided  in the `relativeTo` property
    * of the options object, if supplied.
-   *
-   * 一个 URL 段的数组，用于构造目标 URL 树。如果此路径是静态的，则可能是 URL 字符串字面量。对于动态路径，可以传入一个路径段的数组，后跟每个段的参数。这些段会应用到当前 URL，或者在选项对象中的 `relativeTo` 属性上（如果有）。
-   *
    * @param extras An options object that determines how the URL should be constructed or
    *     interpreted.
-   *
-   * 一个选项对象，用于确定应如何构造或解释 URL。
    *
    * @returns A Promise that resolves to `true` when navigation succeeds, to `false` when navigation
    *     fails,
    * or is rejected on error.
    *
-   * 一个 Promise，在导航成功时解析为 `true`，导航失败时解析为 `false`，或者在出错时被拒绝。
-   *
    * @usageNotes
    *
    * The following calls request navigation to a dynamic route path relative to the current URL.
-   *
-   * 以下调用请求导航到相对于当前 URL 的动态路由路径。
    *
    * ```
    * router.navigate(['team', 33, 'user', 11], {relativeTo: route});
@@ -1434,8 +1213,6 @@ export class Router {
    *
    * @see [Routing and Navigation guide](guide/router)
    *
-   * [路由和导航指南](guide/router)
-   *
    */
   navigate(commands: any[], extras: NavigationExtras = {skipLocationChange: false}):
       Promise<boolean> {
@@ -1443,18 +1220,12 @@ export class Router {
     return this.navigateByUrl(this.createUrlTree(commands, extras), extras);
   }
 
-  /** Serializes a `UrlTree` into a string
-   *
-   * 把 `UrlTree` 序列化为字符串
-   */
+  /** Serializes a `UrlTree` into a string */
   serializeUrl(url: UrlTree): string {
     return this.urlSerializer.serialize(url);
   }
 
-  /** Parses a string into a `UrlTree`
-   *
-   * 把字符串解析为 `UrlTree`
-   */
+  /** Parses a string into a `UrlTree` */
   parseUrl(url: string): UrlTree {
     let urlTree: UrlTree;
     try {
@@ -1465,17 +1236,39 @@ export class Router {
     return urlTree;
   }
 
-  /** Returns whether the url is activated
+  /**
+   * Returns whether the url is activated.
    *
-   * 返回指定的 `url` 是否处于激活状态
+   * @deprecated
+   * Use `IsActiveUrlTreeOptions` instead.
+   *
+   * - The equivalent `IsActiveUrlTreeOptions` for `true` is
+   * `{paths: 'exact', queryParams: 'exact', fragment: 'ignored', matrixParams: 'ignored'}`.
+   * - The equivalent for `false` is
+   * `{paths: 'subset', queryParams: 'subset', fragment: 'ignored', matrixParams: 'ignored'}`.
    */
-  isActive(url: string|UrlTree, exact: boolean): boolean {
+  isActive(url: string|UrlTree, exact: boolean): boolean;
+  /**
+   * Returns whether the url is activated.
+   */
+  isActive(url: string|UrlTree, matchOptions: IsActiveMatchOptions): boolean;
+  /** @internal */
+  isActive(url: string|UrlTree, matchOptions: boolean|IsActiveMatchOptions): boolean;
+  isActive(url: string|UrlTree, matchOptions: boolean|IsActiveMatchOptions): boolean {
+    let options: IsActiveMatchOptions;
+    if (matchOptions === true) {
+      options = {...exactMatchOptions};
+    } else if (matchOptions === false) {
+      options = {...subsetMatchOptions};
+    } else {
+      options = matchOptions;
+    }
     if (isUrlTree(url)) {
-      return containsTree(this.currentUrlTree, url, exact);
+      return containsTree(this.currentUrlTree, url, options);
     }
 
     const urlTree = this.parseUrl(url);
-    return containsTree(this.currentUrlTree, urlTree, exact);
+    return containsTree(this.currentUrlTree, urlTree, options);
   }
 
   private removeEmptyProps(params: Params): Params {
@@ -1509,6 +1302,9 @@ export class Router {
       rawUrl: UrlTree, source: NavigationTrigger, restoredState: RestoredState|null,
       extras: NavigationExtras,
       priorPromise?: {resolve: any, reject: any, promise: Promise<boolean>}): Promise<boolean> {
+    if (this.disposed) {
+      return Promise.resolve(false);
+    }
     // * Imperative navigations (router.navigate) might trigger additional navigations to the same
     //   URL via a popstate event and the locationChangeListener. We should skip these duplicate
     //   navs. Duplicates may also be triggered by attempts to sync AngularJS and Angular router

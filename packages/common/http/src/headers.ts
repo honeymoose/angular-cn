@@ -17,15 +17,11 @@ interface Update {
  * Instances are immutable. Modifying methods return a cloned
  * instance with the change. The original object is never changed.
  *
- * Http 头的不可变集合，惰性解析。
- *
  * @publicApi
  */
 export class HttpHeaders {
   /**
    * Internal map of lowercase header names to values.
-   *
-   * 一个内部映射表，key 是头名称的小写形式，value 是其值。
    */
   // TODO(issue/24571): remove '!'.
   private headers!: Map<string, string[]>;
@@ -34,31 +30,20 @@ export class HttpHeaders {
   /**
    * Internal map of lowercased header names to the normalized
    * form of the name (the form seen first).
-   *
-   * 一个内部映射表，key 是头名称的小写形式，值是该名称的标准化形式（即首先看到的形式）。
    */
   private normalizedNames: Map<string, string> = new Map();
 
   /**
    * Complete the lazy initialization of this object (needed before reading).
-   *
-   * 完成该对象的惰性初始化（在读取之前需要）。
    */
   private lazyInit!: HttpHeaders|Function|null;
 
   /**
    * Queued updates to be materialized the next initialization.
-   *
-   * 一个队列，用于存储下次初始化时要执行的更新。
    */
   private lazyUpdate: Update[]|null = null;
 
-  /**
-   *  Constructs a new HTTP header object with the given values.
-   *
-   * 使用给定的值构造一个新的 HTTP 标头对象。
-   *
-   */
+  /**  Constructs a new HTTP header object with the given values.*/
 
   constructor(headers?: string|{[name: string]: string | string[]}) {
     if (!headers) {
@@ -102,16 +87,9 @@ export class HttpHeaders {
   /**
    * Checks for existence of a given header.
    *
-   * 检查是否存在指定名称的头。
-   *
    * @param name The header name to check for existence.
    *
-   * 要检查是否存在的头名称
-   *
    * @returns True if the header exists, false otherwise.
-   *
-   * 这个头是否存在。
-   *
    */
   has(name: string): boolean {
     this.init();
@@ -122,16 +100,9 @@ export class HttpHeaders {
   /**
    * Retrieves the first value of a given header.
    *
-   * 返回匹配指定名称的第一个头的值。
-   *
    * @param name The header name.
    *
-   * 要取的头名称
-   *
    * @returns The value string if the header exists, null otherwise
-   *
-   * 如果头存在则返回一个字符串，否则返回 null
-   *
    */
   get(name: string): string|null {
     this.init();
@@ -143,11 +114,7 @@ export class HttpHeaders {
   /**
    * Retrieves the names of the headers.
    *
-   * 返回所有的头名称。
-   *
    * @returns A list of header names.
-   *
-   * 一个头名称列表。
    */
   keys(): string[] {
     this.init();
@@ -158,16 +125,9 @@ export class HttpHeaders {
   /**
    * Retrieves a list of values for a given header.
    *
-   * 返回头中具有指定名称的值的列表。
-   *
    * @param name The header name from which to retrieve values.
    *
-   * 准备获取值的头名称
-   *
    * @returns A string of values if the header exists, null otherwise.
-   *
-   * 如果标头存在则返回一个字符串数组，否则返回 null。
-   *
    */
   getAll(name: string): string[]|null {
     this.init();
@@ -179,20 +139,10 @@ export class HttpHeaders {
    * Appends a new value to the existing set of values for a header
    * and returns them in a clone of the original instance.
    *
-   * 将新值附加到标头的现有值集中，并在原始实例的克隆中返回它们。
-   *
    * @param name The header name for which to append the values.
-   *
-   * 要附加值的标头名称。
-   *
    * @param value The value to append.
    *
-   * 要附加的值。
-   *
    * @returns A clone of the HTTP headers object with the value appended to the given header.
-   *
-   * HTTP 标头对象的克隆，带有由给定标头追加的值。
-   *
    */
 
   append(name: string, value: string|string[]): HttpHeaders {
@@ -203,20 +153,10 @@ export class HttpHeaders {
    * If the header already exists, its value is replaced with the given value
    * in the returned object.
    *
-   * 设置或修改原始实例的克隆中给定标头的值。如果标题已经存在，则其值将在返回对象中被给定值替换。
-   *
    * @param name The header name.
-   *
-   * 标头名称。
-   *
    * @param value The value or values to set or overide for the given header.
    *
-   * 要设置或覆盖给定标头的一个或多个值。
-   *
    * @returns A clone of the HTTP headers object with the newly set header value.
-   *
-   * HTTP 标头对象的克隆，其中包含新设置的标头值。
-   *
    */
   set(name: string, value: string|string[]): HttpHeaders {
     return this.clone({name, value, op: 's'});
@@ -224,20 +164,10 @@ export class HttpHeaders {
   /**
    * Deletes values for a given header in a clone of the original instance.
    *
-   * 在原始实例的克隆中删除给定标头的值。
-   *
    * @param name The header name.
-   *
-   * 标头名称。
-   *
    * @param value The value or values to delete for the given header.
    *
-   * 要删除的给定标头的一个或多个值。
-   *
    * @returns A clone of the HTTP headers object with the given value deleted.
-   *
-   * HTTP 标头对象的克隆，其中删除了给定值。
-   *
    */
   delete(name: string, value?: string|string[]): HttpHeaders {
     return this.clone({name, value, op: 'd'});

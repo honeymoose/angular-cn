@@ -13,7 +13,7 @@ import {bootstrap, element as angularElement, IAngularBootstrapConfig, IAugmente
 import {$$TESTABILITY, $COMPILE, $INJECTOR, $ROOT_SCOPE, COMPILER_KEY, INJECTOR_KEY, LAZY_MODULE_REF, NG_ZONE_KEY, UPGRADE_APP_TYPE_KEY} from '../../common/src/constants';
 import {downgradeComponent} from '../../common/src/downgrade_component';
 import {downgradeInjectable} from '../../common/src/downgrade_injectable';
-import {controllerKey, Deferred, LazyModuleRef, onError, UpgradeAppType} from '../../common/src/util';
+import {controllerKey, Deferred, destroyApp, LazyModuleRef, onError, UpgradeAppType} from '../../common/src/util';
 
 import {UpgradeNg1ComponentAdapterBuilder} from './upgrade_ng1_adapter';
 
@@ -31,7 +31,6 @@ let upgradeCount: number = 0;
  *    coexisting in a single application.
  *
  * @usageNotes
- *
  * ### Mental Model
  *
  * When reasoning about how a hybrid application works it is useful to have a mental model which
@@ -138,7 +137,6 @@ export class UpgradeAdapter {
    * AngularJS template.
    *
    * @usageNotes
-   *
    * ### Mental Model
    *
    * 1. The component is instantiated by being listed in AngularJS template. This means that the
@@ -205,7 +203,6 @@ export class UpgradeAdapter {
    * template.
    *
    * @usageNotes
-   *
    * ### Mental Model
    *
    * 1. The component is instantiated by being listed in Angular template. This means that the
@@ -291,7 +288,6 @@ export class UpgradeAdapter {
    * the AngularJS testing injector.
    *
    * @usageNotes
-   *
    * ### Example
    *
    * ```
@@ -350,7 +346,6 @@ export class UpgradeAdapter {
    * AngularJS, this bootstrap is asynchronous.
    *
    * @usageNotes
-   *
    * ### Example
    *
    * ```
@@ -428,7 +423,6 @@ export class UpgradeAdapter {
    * Allows AngularJS service to be accessible from Angular.
    *
    * @usageNotes
-   *
    * ### Example
    *
    * ```
@@ -469,7 +463,6 @@ export class UpgradeAdapter {
    * Allows Angular service to be accessible from AngularJS.
    *
    * @usageNotes
-   *
    * ### Example
    *
    * ```
@@ -501,7 +494,6 @@ export class UpgradeAdapter {
    * @returns The AngularJS upgrade module that is declared by this method
    *
    * @usageNotes
-   *
    * ### Example
    *
    * ```
@@ -513,7 +505,6 @@ export class UpgradeAdapter {
     const delayApplyExps: Function[] = [];
     let original$applyFn: Function;
     let rootScopePrototype: any;
-    let rootScope: IRootScopeService;
     const upgradeAdapter = this;
     const ng1Module = this.ng1Module = angularModule(this.idPrefix, modules);
     const platformRef = platformBrowserDynamic();
@@ -541,7 +532,7 @@ export class UpgradeAdapter {
                 } else {
                   throw new Error('Failed to find \'$apply\' on \'$rootScope\'!');
                 }
-                return rootScope = rootScopeDelegate;
+                return rootScopeDelegate;
               }
             ]);
             if (ng1Injector.has($$TESTABILITY)) {
@@ -628,6 +619,13 @@ export class UpgradeAdapter {
                     rootScope.$on('$destroy', () => {
                       subscription.unsubscribe();
                     });
+
+                    // Destroy the AngularJS app once the Angular `PlatformRef` is destroyed.
+                    // This does not happen in a typical SPA scenario, but it might be useful for
+                    // other use-cases where disposing of an Angular/AngularJS app is necessary
+                    // (such as Hot Module Replacement (HMR)).
+                    // See https://github.com/angular/angular/issues/39935.
+                    platformRef.onDestroy(() => destroyApp(ng1Injector));
                   });
             })
             .catch((e) => this.ng2BootstrapDeferred.reject(e));

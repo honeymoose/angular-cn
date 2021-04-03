@@ -5,10 +5,10 @@ import { AsyncSubject, Observable, of } from 'rxjs';
 import { catchError, switchMap, tap } from 'rxjs/operators';
 
 import { DocumentContents } from './document-contents';
-import { Logger } from '../shared/logger.service';
-import { LocationService } from '../shared/location.service';
-
 export { DocumentContents } from './document-contents';
+
+import { LocationService } from 'app/shared/location.service';
+import { Logger } from 'app/shared/logger.service';
 
 export const FILE_NOT_FOUND_ID = 'file-not-found';
 export const FETCHING_ERROR_ID = 'fetching-error';
@@ -19,9 +19,10 @@ const FETCHING_ERROR_CONTENTS = (path: string) => `
   <div class="nf-container l-flex-wrap flex-center">
     <div class="nf-icon material-icons">error_outline</div>
     <div class="nf-response l-flex-wrap">
-      <h1 class="no-toc">请求文档失败</h1>
+      <h1 class="no-toc">Request for document failed.</h1>
       <p>
-      抱歉，这次我们没能取到 "${path}" 页。请检查你的网络连接，稍后再试。
+        We are unable to retrieve the "${path}" page at this time.
+        Please check your connection and try again later.
       </p>
     </div>
   </div>
@@ -34,9 +35,10 @@ export class DocumentService {
 
   currentDocument: Observable<DocumentContents>;
 
-  constructor(private logger: Logger,
-              private http: HttpClient,
-              location: LocationService) {
+  constructor(
+    private logger: Logger,
+    private http: HttpClient,
+    location: LocationService) {
     // Whenever the URL changes we try to get the appropriate doc
     this.currentDocument = location.currentPath.pipe(switchMap(path => this.getDocument(path)));
   }
@@ -47,7 +49,7 @@ export class DocumentService {
     if (!this.cache.has(id)) {
       this.cache.set(id, this.fetchDocument(id));
     }
-    return this.cache.get(id)!;
+    return this.cache.get(id) as Observable<DocumentContents>;
   }
 
   private fetchDocument(id: string): Observable<DocumentContents> {
@@ -69,6 +71,7 @@ export class DocumentService {
         }),
       )
       .subscribe(subject);
+
     return subject.asObservable();
   }
 
@@ -80,7 +83,7 @@ export class DocumentService {
     } else {
       return of({
         id: FILE_NOT_FOUND_ID,
-        contents: '文档未找到',
+        contents: 'Document not found'
       });
     }
   }

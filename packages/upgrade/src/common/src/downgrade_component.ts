@@ -27,7 +27,6 @@ import {controllerKey, getDowngradedModuleCount, getTypeName, getUpgradeAppType,
  * an AngularJS wrapper directive for "downgrading" an Angular component.
  *
  * @usageNotes
- *
  * ### Examples
  *
  * Let's assume that you have an Angular component called `ng2Heroes` that needs
@@ -175,8 +174,8 @@ export function downgradeComponent(info: {
 
           const injectorPromise = new ParentInjectorPromise(element);
           const facade = new DowngradeComponentAdapter(
-              element, attrs, scope, ngModel, injector, $injector, $compile, $parse,
-              componentFactory, wrapCallback);
+              element, attrs, scope, ngModel, injector, $compile, $parse, componentFactory,
+              wrapCallback);
 
           const projectableNodes = facade.compileContents();
           facade.createComponent(projectableNodes);

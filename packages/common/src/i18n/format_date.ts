@@ -13,7 +13,7 @@ export const ISO8601_DATE_REGEX =
 //    1        2       3         4          5          6          7          8  9     10      11
 const NAMED_FORMATS: {[localeId: string]: {[format: string]: string}} = {};
 const DATE_FORMATS_SPLIT =
-    /((?:[^GyYMLwWdEabBhHmsSzZO']+)|(?:'(?:[^']|'')*')|(?:G{1,5}|y{1,4}|Y{1,4}|M{1,5}|L{1,5}|w{1,2}|W{1}|d{1,2}|E{1,6}|a{1,5}|b{1,5}|B{1,5}|h{1,2}|H{1,2}|m{1,2}|s{1,2}|S{1,3}|z{1,4}|Z{1,5}|O{1,4}))([\s\S]*)/;
+    /((?:[^BEGHLMOSWYZabcdhmswyz']+)|(?:'(?:[^']|'')*')|(?:G{1,5}|y{1,4}|Y{1,4}|M{1,5}|L{1,5}|w{1,2}|W{1}|d{1,2}|E{1,6}|c{1,6}|a{1,5}|b{1,5}|B{1,5}|h{1,2}|H{1,2}|m{1,2}|s{1,2}|S{1,3}|z{1,4}|Z{1,5}|O{1,4}))([\s\S]*)/;
 
 enum ZoneWidth {
   Short,
@@ -46,36 +46,18 @@ enum TranslationType {
  *
  * Formats a date according to locale rules.
  *
- * 基于区域规则格式化日期。
- *
  * @param value The date to format, as a Date, or a number (milliseconds since UTC epoch)
  * or an [ISO date-time string](https://www.w3.org/TR/NOTE-datetime).
- *
- * 要格式化的日期，是一个日期、数字（从 UTC 时代以来的毫秒数）或 ISO 字符串 (https://www.w3.org/TR/NOTE-datetime)。
- *
  * @param format The date-time components to include. See `DatePipe` for details.
- *
- * 表示要包含的日期/时间部件。欲知详情，参见 `DatePipe`。
- *
  * @param locale A locale code for the locale format rules to use.
- *
- * 一个区域代码，用来表示要使用的区域格式规则。
- *
  * @param timezone The time zone. A time zone offset from GMT (such as `'+0430'`),
  * or a standard UTC/GMT or continental US time zone abbreviation.
  * If not specified, uses host system settings.
  *
- * 时区。可以是 GMT 中的时区偏移（如 `'+0430'`），或一个标准的 UTC/GMT 或美国大陆时区的缩写。
- * 如果没有指定，就会使用宿主系统中的设定。
- *
  * @returns The formatted date string.
- *
- * 格式化之后的日期字符串。
  *
  * @see `DatePipe`
  * @see [Internationalization (i18n) Guide](https://angular.io/guide/i18n)
- *
- * [国际化 (i18n) 指南](https://angular.cn/guide/i18n)
  *
  * @publicApi
  */
@@ -117,6 +99,38 @@ export function formatDate(
   });
 
   return text;
+}
+
+/**
+ * Create a new Date object with the given date value, and the time set to midnight.
+ *
+ * We cannot use `new Date(year, month, date)` because it maps years between 0 and 99 to 1900-1999.
+ * See: https://github.com/angular/angular/issues/40377
+ *
+ * Note that this function returns a Date object whose time is midnight in the current locale's
+ * timezone. In the future we might want to change this to be midnight in UTC, but this would be a
+ * considerable breaking change.
+ */
+function createDate(year: number, month: number, date: number): Date {
+  // The `newDate` is set to midnight (UTC) on January 1st 1970.
+  // - In PST this will be December 31st 1969 at 4pm.
+  // - In GMT this will be January 1st 1970 at 1am.
+  // Note that they even have different years, dates and months!
+  const newDate = new Date(0);
+
+  // `setFullYear()` allows years like 0001 to be set correctly. This function does not
+  // change the internal time of the date.
+  // Consider calling `setFullYear(2019, 8, 20)` (September 20, 2019).
+  // - In PST this will now be September 20, 2019 at 4pm
+  // - In GMT this will now be September 20, 2019 at 1am
+
+  newDate.setFullYear(year, month, date);
+  // We want the final date to be at local midnight, so we reset the time.
+  // - In PST this will now be September 20, 2019 at 12am
+  // - In GMT this will now be September 20, 2019 at 12am
+  newDate.setHours(0, 0, 0);
+
+  return newDate;
 }
 
 function getNamedFormat(locale: string, format: string): string {
@@ -221,9 +235,6 @@ function formatFractionalSeconds(milliseconds: number, digits: number): string {
 
 /**
  * Returns a date formatter that transforms a date into its locale digit representation
- *
- * 返回一个日期格式化器，它负责把日期转换成它的本地数字表示法
- *
  */
 function dateGetter(
     name: DateType, size: number, offset: number = 0, trim = false,
@@ -272,9 +283,6 @@ function getDatePart(part: DateType, date: Date): number {
 
 /**
  * Returns a date formatter that transforms a date into its locale string representation
- *
- * 返回一个日期格式化器，它负责把日期转换成它的本地字符串表示法
- *
  */
 function dateStrGetter(
     name: TranslationType, width: TranslationWidth, form: FormStyle = FormStyle.Format,
@@ -286,8 +294,6 @@ function dateStrGetter(
 
 /**
  * Returns the locale translation of a date for a given form, type and width
- *
- * 返回一个日期的指定格式、类型和宽度的本地化格式
  */
 function getDateTranslation(
     date: Date, locale: string, name: TranslationType, width: TranslationWidth, form: FormStyle,
@@ -357,10 +363,6 @@ function getDateTranslation(
  * Returns a date formatter that transforms a date and an offset into a timezone with ISO8601 or
  * GMT format depending on the width (eg: short = +0430, short:GMT = GMT+4, long = GMT+04:30,
  * extended = +04:30)
- *
- * 返回一个日期格式化器，它会根据宽度把日期和偏移转换成 ISO8601 或 GMT 格式的时区
- * （如 short = +0430, short:GMT = GMT+4, long = GMT+04:30,
- * extended = +04:30 ）。
  */
 function timeZoneGetter(width: ZoneWidth): DateFormatter {
   return function(date: Date, locale: string, offset: number) {
@@ -392,13 +394,13 @@ function timeZoneGetter(width: ZoneWidth): DateFormatter {
 const JANUARY = 0;
 const THURSDAY = 4;
 function getFirstThursdayOfYear(year: number) {
-  const firstDayOfYear = (new Date(year, JANUARY, 1)).getDay();
-  return new Date(
+  const firstDayOfYear = createDate(year, JANUARY, 1).getDay();
+  return createDate(
       year, 0, 1 + ((firstDayOfYear <= THURSDAY) ? THURSDAY : THURSDAY + 7) - firstDayOfYear);
 }
 
 function getThursdayThisWeek(datetime: Date) {
-  return new Date(
+  return createDate(
       datetime.getFullYear(), datetime.getMonth(),
       datetime.getDate() + (THURSDAY - datetime.getDay()));
 }
@@ -443,7 +445,7 @@ const DATE_FORMATS: {[format: string]: DateFormatter} = {};
 // Based on CLDR formats:
 // See complete list: http://www.unicode.org/reports/tr35/tr35-dates.html#Date_Field_Symbol_Table
 // See also explanations: http://cldr.unicode.org/translation/date-time
-// TODO(ocombe): support all missing cldr formats: Y, U, Q, D, F, e, c, j, J, C, A, v, V, X, x
+// TODO(ocombe): support all missing cldr formats: U, Q, D, F, e, j, J, C, A, v, V, X, x
 function getDateFormatter(format: string): DateFormatter|null {
   if (DATE_FORMATS[format]) {
     return DATE_FORMATS[format];
@@ -553,6 +555,26 @@ function getDateFormatter(format: string): DateFormatter|null {
       break;
     case 'dd':
       formatter = dateGetter(DateType.Date, 2);
+      break;
+
+    // Day of the Week StandAlone (1, 1, Mon, Monday, M, Mo)
+    case 'c':
+    case 'cc':
+      formatter = dateGetter(DateType.Day, 1);
+      break;
+    case 'ccc':
+      formatter =
+          dateStrGetter(TranslationType.Days, TranslationWidth.Abbreviated, FormStyle.Standalone);
+      break;
+    case 'cccc':
+      formatter = dateStrGetter(TranslationType.Days, TranslationWidth.Wide, FormStyle.Standalone);
+      break;
+    case 'ccccc':
+      formatter =
+          dateStrGetter(TranslationType.Days, TranslationWidth.Narrow, FormStyle.Standalone);
+      break;
+    case 'cccccc':
+      formatter = dateStrGetter(TranslationType.Days, TranslationWidth.Short, FormStyle.Standalone);
       break;
 
     // Day of the Week
@@ -720,29 +742,14 @@ function convertTimezoneToLocal(date: Date, timezone: string, reverse: boolean):
 /**
  * Converts a value to date.
  *
- * 把值转换为日期。
- *
  * Supported input formats:
- *
- * 支持的输入格式：
- *
  * - `Date`
  * - number: timestamp
- *
- *   数字：时间戳
- *
  * - string: numeric (e.g. "1234"), ISO and date strings in a format supported by
  *   [Date.parse()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/parse).
  *   Note: ISO strings without time return a date without timeoffset.
  *
- *   字符串：数字（如 "1234"）、ISO 格式和 [Date.parse()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/parse)
- *   所支持的日期字符串格式。
- *   注意：不带时间的 ISO 字符串会返回一个没有时区偏移量的日期。
- *
  * Throws if unable to convert to a date.
- *
- * 如果不能转换成日期，则抛出异常。
- *
  */
 export function toDate(value: string|number|Date): Date {
   if (isDate(value)) {
@@ -756,14 +763,7 @@ export function toDate(value: string|number|Date): Date {
   if (typeof value === 'string') {
     value = value.trim();
 
-    const parsedNb = parseFloat(value);
-
-    // any string that only contains numbers, like "1234" but not like "1234hello"
-    if (!isNaN(value as any - parsedNb)) {
-      return new Date(parsedNb);
-    }
-
-    if (/^(\d{4}-\d{1,2}-\d{1,2})$/.test(value)) {
+    if (/^(\d{4}(-\d{1,2}(-\d{1,2})?)?)$/.test(value)) {
       /* For ISO Strings without time the day, month and year must be extracted from the ISO String
       before Date creation to avoid time offset and errors in the new Date.
       If we only replace '-' with ',' in the ISO String ("2015,01,01"), and try to create a new
@@ -771,8 +771,15 @@ export function toDate(value: string|number|Date): Date {
       If we leave the '-' ("2015-01-01") and try to create a new Date("2015-01-01") the timeoffset
       is applied.
       Note: ISO months are 0 for January, 1 for February, ... */
-      const [y, m, d] = value.split('-').map((val: string) => +val);
-      return new Date(y, m - 1, d);
+      const [y, m = 1, d = 1] = value.split('-').map((val: string) => +val);
+      return createDate(y, m - 1, d);
+    }
+
+    const parsedNb = parseFloat(value);
+
+    // any string that only contains numbers, like "1234" but not like "1234hello"
+    if (!isNaN(value as any - parsedNb)) {
+      return new Date(parsedNb);
     }
 
     let match: RegExpMatchArray|null;
@@ -791,9 +798,6 @@ export function toDate(value: string|number|Date): Date {
 /**
  * Converts a date in ISO8601 to a Date.
  * Used instead of `Date.parse` because of browser discrepancies.
- *
- * 把 ISO8601 格式的字符串转换成 `Date` 对象。
- * 由于浏览器的差异而不能使用 `Date.parse`。
  */
 export function isoStringToDate(match: RegExpMatchArray): Date {
   const date = new Date(0);

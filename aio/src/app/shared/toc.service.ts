@@ -1,8 +1,8 @@
 import { DOCUMENT } from '@angular/common';
 import { Inject, Injectable } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
-import { ScrollSpyInfo, ScrollSpyService } from 'app/shared/scroll-spy.service';
 import { ReplaySubject } from 'rxjs';
+import { ScrollSpyInfo, ScrollSpyService } from 'app/shared/scroll-spy.service';
 
 
 export interface TocItem {
@@ -19,10 +19,10 @@ export class TocService {
   activeItemIndex = new ReplaySubject<number | null>(1);
   private scrollSpyInfo: ScrollSpyInfo | null = null;
 
-  constructor(@Inject(DOCUMENT) private document: any,
-              private domSanitizer: DomSanitizer,
-              private scrollSpyService: ScrollSpyService) {
-  }
+  constructor(
+      @Inject(DOCUMENT) private document: any,
+      private domSanitizer: DomSanitizer,
+      private scrollSpyService: ScrollSpyService) { }
 
   genToc(docElement?: Element, docId = '') {
     this.resetScrollSpyInfo();
@@ -70,7 +70,7 @@ export class TocService {
     // Remove any remaining `a` elements (but keep their content).
     querySelectorAll(div, 'a').forEach(anchorLink => {
       // We want to keep the content of this anchor, so move it into its parent.
-      const parent = anchorLink.parentNode!;
+      const parent = anchorLink.parentNode as Node;
       while (anchorLink.childNodes.length) {
         parent.insertBefore(anchorLink.childNodes[0], anchorLink);
       }
@@ -90,24 +90,9 @@ export class TocService {
   private findTocHeadings(docElement: Element): HTMLHeadingElement[] {
     // const headings = querySelectorAll(docElement, 'h1,h2,h3');
     const headings = querySelectorAll<HTMLHeadingElement>(docElement, 'h1,h2,h3');
-    const skipNoTocHeadings = (heading: HTMLHeadingElement) => {
-      return !/(?:no-toc|notoc)/i.test(heading.className) && !this.isOriginalText(heading);
-    };
+    const skipNoTocHeadings = (heading: HTMLHeadingElement) => !/(?:no-toc|notoc)/i.test(heading.className);
 
     return headings.filter(skipNoTocHeadings);
-  }
-
-  private isOriginalText(heading: HTMLHeadingElement): boolean {
-    if (heading && heading.hasAttribute('translation-origin')) {
-      let prevNode = heading.previousElementSibling;
-      if (prevNode && prevNode.tagName === 'AIO-TOC') {
-        prevNode = prevNode.previousElementSibling;
-      }
-      if (prevNode && prevNode.hasAttribute('translation-result')) {
-        return true;
-      }
-    }
-    return false;
   }
 
   private resetScrollSpyInfo() {

@@ -72,8 +72,6 @@ function getNamespace(elementName: string): string|null {
 /**
  * A change detection scheduler token for {@link RootContext}. This token is the default value used
  * for the default `RootContext` found in the {@link ROOT_CONTEXT} token.
- *
- * 供 {@link RootContext} 使用的变更检测调度器的令牌。该令牌是供 {@link ROOT_CONTEXT} 对应的默认 `RootContext` 使用的默认值。
  */
 export const SCHEDULER = new InjectionToken<((fn: () => void) => void)>('SCHEDULER_TOKEN', {
   providedIn: 'root',
@@ -104,8 +102,6 @@ function createChainedInjector(rootViewInjector: Injector, moduleInjector: Injec
 
 /**
  * Render3 implementation of {@link viewEngine_ComponentFactory}.
- *
- * {@link viewEngine_ComponentFactory} 的 Render3 实现。
  */
 export class ComponentFactory<T> extends viewEngine_ComponentFactory<T> {
   selector: string;
@@ -246,17 +242,12 @@ export function injectComponentFactoryResolver(): viewEngine_ComponentFactoryRes
 /**
  * Represents an instance of a Component created via a {@link ComponentFactory}.
  *
- * 表示通过 {@link ComponentFactory} 创建的组件的实例。
- *
  * `ComponentRef` provides access to the Component Instance as well other objects related to this
  * Component Instance and allows you to destroy the Component Instance via the {@link #destroy}
  * method.
  *
- * `ComponentRef` 提供了对该组件实例及其相关对象的访问能力，并允许你通过 {@link #destroy} 方法销毁该实例。
- *
  */
 export class ComponentRef<T> extends viewEngine_ComponentRef<T> {
-  destroyCbs: (() => void)[]|null = [];
   instance: T;
   hostView: ViewRef<T>;
   changeDetectorRef: ViewEngine_ChangeDetectorRef;
@@ -277,16 +268,10 @@ export class ComponentRef<T> extends viewEngine_ComponentRef<T> {
   }
 
   destroy(): void {
-    if (this.destroyCbs) {
-      this.destroyCbs.forEach(fn => fn());
-      this.destroyCbs = null;
-      !this.hostView.destroyed && this.hostView.destroy();
-    }
+    this.hostView.destroy();
   }
 
   onDestroy(callback: () => void): void {
-    if (this.destroyCbs) {
-      this.destroyCbs.push(callback);
-    }
+    this.hostView.onDestroy(callback);
   }
 }

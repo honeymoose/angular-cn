@@ -32,7 +32,7 @@
   <h2>{$ itemType $}</h2>
   <table class="is-full-width list-table {$ cssClass $}-table">
     <thead>
-      <tr><th>名称</th><th>说明</th></tr>
+      <tr><th>Name</th><th>Description</th></tr>
     </thead>
     <tbody>
     {% for item in items %}
@@ -43,7 +43,7 @@
           </a>
         </td>
         <td>
-          {% if item.deprecated !== undefined %}<div no-translate>{$ ('**已弃用:** ' + item.deprecated) | marked $}</div>{% endif %}
+          {% if item.deprecated !== undefined %}{$ ('**Deprecated:** ' + item.deprecated) | marked $}{% endif %}
           {$ item.shortDescription | marked $}
         </td>
       </tr>
@@ -59,28 +59,25 @@
 {% block details %}
   {% block additional %}{% endblock %}
   {% include "includes/description.html" %}
-  {$ memberHelpers.renderProperties(doc.staticProperties, 'static-properties', 'static-property', '静态属性') $}
-  {$ memberHelpers.renderMethodDetails(versionInfo, doc.staticMethods, 'static-methods', 'static-method', '静态方法') $}
+  {$ memberHelpers.renderProperties(doc.staticProperties, 'static-properties', 'static-property', 'Static properties') $}
+  {$ memberHelpers.renderMethodDetails(versionInfo, doc.staticMethods, 'static-methods', 'static-method', 'Static methods') $}
   {% if doc.constructorDoc %}
-  <h2 id="constructor">构造函数</h2>
+  <h2>Constructor</h2>
   {$ memberHelpers.renderMethodDetail(versionInfo, doc.constructorDoc, 'constructor') $}{% endif %}
 
-  {$ memberHelpers.renderProperties(doc.properties, 'instance-properties', 'instance-property', '属性') $}
+  {$ memberHelpers.renderProperties(doc.properties, 'instance-properties', 'instance-property', 'Properties') $}
 
-  {$ memberHelpers.renderMethodDetails(versionInfo, doc.methods, 'instance-methods', 'instance-method', '方法') $}
+  {$ memberHelpers.renderMethodDetails(versionInfo, doc.methods, 'instance-methods', 'instance-method', 'Methods') $}
 
   {% if doc.ngmoduleOptions.providers %}
-  <a name="providers"></a>
-  {$ renderTable(doc.ngmoduleOptions.providers, 'providers', '提供商', '提供商') $}
+  {$ renderTable(doc.ngmoduleOptions.providers, 'providers', 'Providers', 'Provider') $}
   {% endif %}
 
   {% if doc.directives.length %}
-    <a name="directives"></a>
-    {$ renderExports(doc.directives, 'directive', '指令') $}
+    {$ renderExports(doc.directives, 'directive', 'Directives') $}
   {% endif %}
   {% if doc.pipes.length %}
-    <a name="pipes"></a>
-    {$ renderExports(doc.pipes, 'pipe', '管道') $}
+    {$ renderExports(doc.pipes, 'pipe', 'Pipes') $}
   {% endif %}
 
 {% endblock %}

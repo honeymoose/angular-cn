@@ -13,7 +13,6 @@ type NgClassSupportedTypes = string[]|Set<string>|{[klass: string]: any}|null|un
  * @ngModule CommonModule
  *
  * @usageNotes
- *
  * ```
  *     <some-element [ngClass]="'first second'">...</some-element>
  *
@@ -30,24 +29,11 @@ type NgClassSupportedTypes = string[]|Set<string>|{[klass: string]: any}|null|un
  *
  * Adds and removes CSS classes on an HTML element.
  *
- * 从 HTML 元素上添加和移除 CSS 类。
- *
  * The CSS classes are updated as follows, depending on the type of the expression evaluation:
- *
- * CSS 类会根据表达式求值结果进行更新，更新逻辑取决于结果的类型：
- *
  * - `string` - the CSS classes listed in the string (space delimited) are added,
- *
- *   `string` - 会把列在字符串中的 CSS 类（空格分隔）添加进来，
- *
  * - `Array` - the CSS classes declared as Array elements are added,
- *
- *   `Array` - 会把数组中的各个元素作为 CSS 类添加进来，
- *
  * - `Object` - keys are CSS classes that get added when the expression given in the value
  *              evaluates to a truthy value, otherwise they are removed.
- *
- *   `Object` - 每个 key 都是要处理的 CSS 类，当表达式求值为真的时候则添加，为假则移除。
  *
  * @publicApi
  */
@@ -130,15 +116,10 @@ export class NgClass implements DoCheck {
   /**
    * Applies a collection of CSS classes to the DOM element.
    *
-   * 将 CSS 类的集合应用于 DOM 元素。
-   *
    * For argument of type Set and Array CSS class names contained in those collections are always
    * added.
    * For argument of type Map CSS class name in the map's key is toggled based on the value (added
    * for truthy and removed for falsy).
-   *
-   * 对于 Set 和 Array 类型的参数，总是添加那些集合中包含的 CSS 类名称。对于 Map 类型的参数，与映射表中的键名对应的 CSS 类名称会根据该值进行切换（为 true 添加，为 falsy 删除）。
-   *
    */
   private _applyClasses(rawClassVal: NgClassSupportedTypes) {
     if (rawClassVal) {
@@ -153,9 +134,6 @@ export class NgClass implements DoCheck {
   /**
    * Removes a collection of CSS classes from the DOM element. This is mostly useful for cleanup
    * purposes.
-   *
-   * 从 DOM 元素中删除 CSS 类的集合。这主要用于清理目的。
-   *
    */
   private _removeClasses(rawClassVal: NgClassSupportedTypes) {
     if (rawClassVal) {

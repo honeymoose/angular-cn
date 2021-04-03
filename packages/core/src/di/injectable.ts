@@ -19,8 +19,6 @@ import {convertInjectableProviderToFactory} from './util';
 /**
  * Injectable providers used in `@Injectable` decorator.
  *
- * `@Injectable` 装饰器中使用的可注入对象提供者。
- *
  * @publicApi
  */
 export type InjectableProvider = ValueSansProvider|ExistingSansProvider|StaticClassSansProvider|
@@ -29,8 +27,6 @@ export type InjectableProvider = ValueSansProvider|ExistingSansProvider|StaticCl
 /**
  * Type of the Injectable decorator / constructor function.
  *
- * Injectable 装饰器的类型和构造函数
- *
  * @publicApi
  */
 export interface InjectableDecorator {
@@ -38,15 +34,8 @@ export interface InjectableDecorator {
    * Decorator that marks a class as available to be
    * provided and injected as a dependency.
    *
-   * 标记性元数据，表示一个类可以由 `Injector` 进行创建。
-   *
    * @see [Introduction to Services and DI](guide/architecture-services)
-   *
-   * [服务和 DI 简介](guide/architecture-services)
-   *
    * @see [Dependency Injection Guide](guide/dependency-injection)
-   *
-   * [依赖注入指南](guide/dependency-injection)
    *
    * @usageNotes
    *
@@ -54,12 +43,8 @@ export interface InjectableDecorator {
    * will generate the necessary metadata to create the class's
    * dependencies when the class is injected.
    *
-   * 使用 `@Injectable` 标记一个类可确保编译器将在注入类时生成必要的元数据，以创建类的依赖项。
-   *
    * The following example shows how a service class is properly
    *  marked so that a supporting service can be injected upon creation.
-   *
-   * 下面的例子展示了如何正确的把服务类标记为可注入的（Injectable）。
    *
    * <code-example path="core/di/ts/metadata_spec.ts" region="Injectable"></code-example>
    *
@@ -75,8 +60,6 @@ export interface InjectableDecorator {
 /**
  * Type of the Injectable metadata.
  *
- * Injectable 元数据的类型。
- *
  * @publicApi
  */
 export interface Injectable {
@@ -84,22 +67,12 @@ export interface Injectable {
    * Determines which injectors will provide the injectable,
    * by either associating it with an `@NgModule` or other `InjectorType`,
    * or by specifying that this injectable should be provided in one of the following injectors:
-   *
-   * 通过与 `@NgModule` 或其他 `InjectorType` 关联，或通过指定应在以下注入器之一中提供此可注入对象，来确定将提供该对象的注入器：
-   *
    * - 'root' : The application-level injector in most apps.
-   *
-   *   'root'：在大多数应用程序中是指应用程序级注入器。
-   *
    * - 'platform' : A special singleton platform injector shared by all
    * applications on the page.
-   *
-   *     'platform' ：页面上所有应用程序共享的平台注入器的特殊单例。
-   *
    * - 'any' : Provides a unique instance in each lazy loaded module while all eagerly loaded
    * modules share one instance.
    *
-   *     'any'：在每个惰性加载的模块中提供一个唯一的实例，而所有急性加载的模块共享一个实例。
    */
   providedIn?: Type<any>|'root'|'platform'|'any'|null;
 }
@@ -107,9 +80,7 @@ export interface Injectable {
 /**
  * Injectable decorator and metadata.
  *
- * Injectable 的装饰器和元数据。
-*
-* @Annotation
+ * @Annotation
  * @publicApi
  */
 export const Injectable: InjectableDecorator = makeDecorator(

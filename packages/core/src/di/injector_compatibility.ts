@@ -11,17 +11,24 @@ import '../util/ng_dev_mode';
 import {AbstractType, Type} from '../interface/type';
 import {getClosureSafeProperty} from '../util/property';
 import {stringify} from '../util/stringify';
+
 import {resolveForwardRef} from './forward_ref';
 import {getInjectImplementation, injectRootLimpMode} from './inject_switch';
 import {InjectionToken} from './injection_token';
 import {Injector} from './injector';
-import {InjectFlags} from './interface/injector';
+import {DecoratorFlags, InjectFlags, InternalInjectFlags} from './interface/injector';
 import {ValueProvider} from './interface/provider';
-import {Inject, Optional, Self, SkipSelf} from './metadata';
 
 
 const _THROW_IF_NOT_FOUND = {};
 export const THROW_IF_NOT_FOUND = _THROW_IF_NOT_FOUND;
+
+/*
+ * Name of a property (that we patch onto DI decorator), which is used as an annotation of which
+ * InjectFlag this decorator represents. This allows to avoid direct references to the DI decorators
+ * in the code, thus making them tree-shakable.
+ */
+const DI_DECORATOR_FLAG = '__NG_DI_FLAG__';
 
 export const NG_TEMP_TOKEN_PATH = 'ngTempTokenPath';
 const NG_TOKEN_PATH = 'ngTokenPath';
@@ -63,22 +70,13 @@ export function injectInjectorOnly<T>(
 /**
  * Generated instruction: Injects a token from the currently active injector.
  *
- * 生成的方式：从当前活动的注入器注入令牌。
- *
  * Must be used in the context of a factory function such as one defined for an
  * `InjectionToken`. Throws an error if not called from such a context.
- *
- * 必须在工厂函数的上下文中使用，比如为 `InjectionToken` 定义的函数。如果未从这样的上下文中调用，则会引发错误。
  *
  * (Additional documentation moved to `inject`, as it is the public API, and an alias for this
  * instruction)
  *
- * （其他文档移到了 `inject` ，因为它是公共 API，并且是此指令的别名）
- *
  * @see inject
- *
- * 注入
- *
  * @codeGenApi
  * @publicApi This instruction has been emitted by ViewEngine for some time and is deployed to npm.
  */
@@ -117,38 +115,22 @@ Please check that 1) the type for the parameter at index ${
 /**
  * Injects a token from the currently active injector.
  *
- * 从当前活动的注入器中注入令牌。
- *
  * Must be used in the context of a factory function such as one defined for an
  * `InjectionToken`. Throws an error if not called from such a context.
- *
- * 必须在工厂函数的上下文中使用，比如为 `InjectionToken` 定义的函数。如果未从这样的上下文中调用，则会引发错误。
  *
  * Within such a factory function, using this function to request injection of a dependency
  * is faster and more type-safe than providing an additional array of dependencies
  * (as has been common with `useFactory` providers).
  *
- * 在这样的工厂函数中，使用此函数来请求注入依赖项比提供额外的依赖项数组（在 `useFactory` 提供者中这很常见）要更快且类型安全性更高。
- *
  * @param token The injection token for the dependency to be injected.
- *
- * 用于注入依赖项的注入令牌。
- *
  * @param flags Optional flags that control how injection is executed.
  * The flags correspond to injection strategies that can be specified with
  * parameter decorators `@Host`, `@Self`, `@SkipSef`, and `@Optional`.
- *
- * 控制执行注入方式的可选标志。这些标志对应于可以使用参数装饰器 `@Host`、`@Self`、`@SkipSef` 和 `@Optional` 指定的注入策略。
- *
- * @returns True if injection is successful, null otherwise.
- *
- * 如果注入成功，则为 true，否则为 null。
+ * @returns the injected value if injection is successful, `null` otherwise.
  *
  * @usageNotes
  *
  * ### Example
- *
- * ### 例子
  *
  * {@example core/di/ts/injector_spec.ts region='ShakableInjectionToken'}
  *
@@ -169,15 +151,14 @@ export function injectArgs(types: (Type<any>|InjectionToken<any>|any[])[]): any[
 
       for (let j = 0; j < arg.length; j++) {
         const meta = arg[j];
-        if (meta instanceof Optional || meta.ngMetadataName === 'Optional' || meta === Optional) {
-          flags |= InjectFlags.Optional;
-        } else if (
-            meta instanceof SkipSelf || meta.ngMetadataName === 'SkipSelf' || meta === SkipSelf) {
-          flags |= InjectFlags.SkipSelf;
-        } else if (meta instanceof Self || meta.ngMetadataName === 'Self' || meta === Self) {
-          flags |= InjectFlags.Self;
-        } else if (meta instanceof Inject || meta === Inject) {
-          type = meta.token;
+        const flag = getInjectFlag(meta);
+        if (typeof flag === 'number') {
+          // Special case when we handle @Inject decorator.
+          if (flag === DecoratorFlags.Inject) {
+            type = meta.token;
+          } else {
+            flags |= flag;
+          }
         } else {
           type = meta;
         }
@@ -191,6 +172,30 @@ export function injectArgs(types: (Type<any>|InjectionToken<any>|any[])[]): any[
   return args;
 }
 
+/**
+ * Attaches a given InjectFlag to a given decorator using monkey-patching.
+ * Since DI decorators can be used in providers `deps` array (when provider is configured using
+ * `useFactory`) without initialization (e.g. `Host`) and as an instance (e.g. `new Host()`), we
+ * attach the flag to make it available both as a static property and as a field on decorator
+ * instance.
+ *
+ * @param decorator Provided DI decorator.
+ * @param flag InjectFlag that should be applied.
+ */
+export function attachInjectFlag(decorator: any, flag: InternalInjectFlags|DecoratorFlags): any {
+  decorator[DI_DECORATOR_FLAG] = flag;
+  decorator.prototype[DI_DECORATOR_FLAG] = flag;
+  return decorator;
+}
+
+/**
+ * Reads monkey-patched property that contains InjectFlag attached to a decorator.
+ *
+ * @param token Token that may contain monkey-patched DI flags property.
+ */
+export function getInjectFlag(token: any): number|undefined {
+  return token[DI_DECORATOR_FLAG];
+}
 
 export function catchInjectorError(
     e: any, token: any, injectorErrorName: string, source: string|null): never {

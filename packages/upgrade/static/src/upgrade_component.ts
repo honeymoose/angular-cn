@@ -39,7 +39,6 @@ class Bindings {
  * that wrap AngularJS components that need to be "upgraded".
  *
  * @usageNotes
- *
  * ### Examples
  *
  * Let's assume that you have an AngularJS component called `ng1Hero` that needs

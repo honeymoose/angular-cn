@@ -8,7 +8,7 @@
 
 import {Directive, ElementRef, forwardRef, Host, Input, OnDestroy, Optional, Renderer2, StaticProvider} from '@angular/core';
 
-import {ControlValueAccessor, NG_VALUE_ACCESSOR} from './control_value_accessor';
+import {BuiltInControlValueAccessor, ControlValueAccessor, NG_VALUE_ACCESSOR} from './control_value_accessor';
 
 export const SELECT_VALUE_ACCESSOR: StaticProvider = {
   provide: NG_VALUE_ACCESSOR,
@@ -32,50 +32,31 @@ function _extractId(valueString: string): string {
  * changes. The value accessor is used by the `FormControlDirective`, `FormControlName`, and
  * `NgModel` directives.
  *
- * 该 `ControlValueAccessor` 用于写入 select 控件的值，并监听 select 控件的变化。该值访问器会被 `FormControlDirective`、`FormControlName` 和
- * `NgModel` 指令使用。
- *
  * @usageNotes
  *
  * ### Using select controls in a reactive form
  *
- * ### 在响应式表单中使用 select 控件
- *
  * The following examples show how to use a select control in a reactive form.
- *
- * 下面的例子演示了如何在响应式表单中使用 select 控件。
  *
  * {@example forms/ts/reactiveSelectControl/reactive_select_control_example.ts region='Component'}
  *
  * ### Using select controls in a template-driven form
  *
- * ### 在模板驱动表单中使用 select 控件
- *
  * To use a select in a template-driven form, simply add an `ngModel` and a `name`
  * attribute to the main `<select>` tag.
- *
- * 要在模板驱动表单中使用 `select`，只要把 `ngModel` 和 `name` 属性加到 `<select>` 标签上即可。
  *
  * {@example forms/ts/selectControl/select_control_example.ts region='Component'}
  *
  * ### Customizing option selection
- *
- * ### 自定义 `option` 的选择结果
  *
  * Angular uses object identity to select option. It's possible for the identities of items
  * to change while the data does not. This can happen, for example, if the items are produced
  * from an RPC to the server, and that RPC is re-run. Even if the data hasn't changed, the
  * second response will produce objects with different identities.
  *
- * Angular 使用对象标识作为选项。条目标识可能在其实质性数据没有变化的情况发生变化。比如，如果这些条目是通过 RPC 的方式从服务端取到的，当重新执行 RPC 时，就算数据没有变化，第二个响应也会生成一些具有不同对象标识的对象。
- *
  * To customize the default option comparison algorithm, `<select>` supports `compareWith` input.
  * `compareWith` takes a **function** which has two arguments: `option1` and `option2`.
  * If `compareWith` is given, Angular selects option by the return value of the function.
- *
- * 要想自定义默认的选项比较算法，`<select>` 支持一个名叫 `compareWith` 的输入。
- * `compareWith` 接受一个**函数**，它具有两个参数：`option1` 和 `option2`。
- * 如果指定了 `compareWith`，则 Angular 会根据该函数的返回值来选取一个选项。
  *
  * ```ts
  * const selectedCountriesControl = new FormControl();
@@ -94,13 +75,8 @@ function _extractId(valueString: string): string {
  * ```
  *
  * **Note:** We listen to the 'change' event because 'input' events aren't fired
- * for selects in Firefox and IE:
- * https://bugzilla.mozilla.org/show_bug.cgi?id=1024350
- * https://developer.microsoft.com/en-us/microsoft-edge/platform/issues/4660045/
- *
- * 注意：我们要监听 `change` 事件，这是因为 `input` 事件不会在 Firefox 和 IE 的 `select` 元素上触发：
- * https://bugzilla.mozilla.org/show_bug.cgi?id=1024350
- * https://developer.microsoft.com/en-us/microsoft-edge/platform/issues/4660045/
+ * for selects in IE, see:
+ * https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement/input_event#browser_compatibility
  *
  * @ngModule ReactiveFormsModule
  * @ngModule FormsModule
@@ -112,7 +88,8 @@ function _extractId(valueString: string): string {
   host: {'(change)': 'onChange($event.target.value)', '(blur)': 'onTouched()'},
   providers: [SELECT_VALUE_ACCESSOR]
 })
-export class SelectControlValueAccessor implements ControlValueAccessor {
+export class SelectControlValueAccessor extends BuiltInControlValueAccessor implements
+    ControlValueAccessor {
   /** @nodoc */
   value: any;
 
@@ -124,18 +101,12 @@ export class SelectControlValueAccessor implements ControlValueAccessor {
 
   /**
    * The registered callback function called when a change event occurs on the input element.
-   *
-   * 在输入元素上发生 change 事件时调用的已注册回调函数。
-   *
    * @nodoc
    */
   onChange = (_: any) => {};
 
   /**
    * The registered callback function called when a blur event occurs on the input element.
-   *
-   * 当输入元素上发生 blur 事件时调用已注册回调函数。
-   *
    * @nodoc
    */
   onTouched = () => {};
@@ -144,9 +115,6 @@ export class SelectControlValueAccessor implements ControlValueAccessor {
    * @description
    * Tracks the option comparison algorithm for tracking identities when
    * checking for changes.
-   *
-   * 跟踪选项的比较算法，以在检查变更时跟踪其标识。
-   *
    */
   @Input()
   set compareWith(fn: (o1: any, o2: any) => boolean) {
@@ -158,14 +126,13 @@ export class SelectControlValueAccessor implements ControlValueAccessor {
 
   private _compareWith: (o1: any, o2: any) => boolean = Object.is;
 
-  constructor(private _renderer: Renderer2, private _elementRef: ElementRef) {}
+  constructor(private _renderer: Renderer2, private _elementRef: ElementRef) {
+    super();
+  }
 
   /**
    * Sets the "value" property on the input element. The "selectedIndex"
    * property is also set if an ID is provided on the option element.
-   *
-   * 在输入元素上设置 “value” 属性。如果在选项元素上提供了 ID，则还将设置 “selectedIndex” 属性。
-   *
    * @nodoc
    */
   writeValue(value: any): void {
@@ -180,9 +147,6 @@ export class SelectControlValueAccessor implements ControlValueAccessor {
 
   /**
    * Registers a function called when the control value changes.
-   *
-   * 注册控件值更改时要调用的函数。
-   *
    * @nodoc
    */
   registerOnChange(fn: (value: any) => any): void {
@@ -194,9 +158,6 @@ export class SelectControlValueAccessor implements ControlValueAccessor {
 
   /**
    * Registers a function called when the control is touched.
-   *
-   * 注册控件被接触过时要调用的函数。
-   *
    * @nodoc
    */
   registerOnTouched(fn: () => any): void {
@@ -205,9 +166,6 @@ export class SelectControlValueAccessor implements ControlValueAccessor {
 
   /**
    * Sets the "disabled" property on the select input element.
-   *
-   * 在 select 输入元素上设置 “disabled” 属性。
-   *
    * @nodoc
    */
   setDisabledState(isDisabled: boolean): void {
@@ -238,8 +196,6 @@ export class SelectControlValueAccessor implements ControlValueAccessor {
  * @description
  * Marks `<option>` as dynamic, so Angular can be notified when options change.
  *
- * 把选项 `<option>` 标记为动态的，这样 Angular 就会在选项变化时得到通知。
- *
  * @see `SelectControlValueAccessor`
  *
  * @ngModule ReactiveFormsModule
@@ -251,9 +207,6 @@ export class NgSelectOption implements OnDestroy {
   /**
    * @description
    * ID of the option element
-   *
-   * 选项元素的 ID
-   *
    */
   // TODO(issue/24571): remove '!'.
   id!: string;
@@ -268,9 +221,6 @@ export class NgSelectOption implements OnDestroy {
    * @description
    * Tracks the value bound to the option element. Unlike the value binding,
    * ngValue supports binding to objects.
-   *
-   * 跟踪绑定到选项元素的值。与值绑定不同，ngValue 支持绑定到对象。
-   *
    */
   @Input('ngValue')
   set ngValue(value: any) {
@@ -284,9 +234,6 @@ export class NgSelectOption implements OnDestroy {
    * @description
    * Tracks simple string values bound to the option element.
    * For objects, use the `ngValue` input binding.
-   *
-   * 跟踪绑定到 option 元素的简单字符串值。对于对象，请使用 `ngValue` 输入绑定。
-   *
    */
   @Input('value')
   set value(value: any) {
