@@ -13,10 +13,24 @@ import {BrowserModule} from '@angular/platform-browser';
 import {platformBrowserDynamic} from '@angular/platform-browser-dynamic';
 import {NavigationEnd, Resolve, Router, RouterModule} from '@angular/router';
 
+// This is needed, because all files under `packages/` are compiled together as part of the
+// [legacy-unit-tests-saucelabs][1] CI job, including the `lib.webworker.d.ts` typings brought in by
+// [service-worker/worker/src/service-worker.d.ts][2].
+//
+// [1]:
+// https://github.com/angular/angular/blob/ffeea63f43e6a7fd46be4a8cd5a5d254c98dea08/.circleci/config.yml#L681
+// [2]:
+// https://github.com/angular/angular/blob/316dc2f12ce8931f5ff66fa5f8da21c0d251a337/packages/service-worker/worker/src/service-worker.d.ts#L9
+declare var window: Window;
+
 describe('bootstrap', () => {
   if (isNode) return;
   let log: any[] = [];
   let testProviders: any[] = null!;
+
+  @Component({template: 'simple'})
+  class SimpleCmp {
+  }
 
   @Component({selector: 'test-app', template: 'root <router-outlet></router-outlet>'})
   class RootCmp {
@@ -393,5 +407,37 @@ describe('bootstrap', () => {
 
     expect(window.removeEventListener).toHaveBeenCalledWith('popstate', jasmine.any(Function));
     expect(window.removeEventListener).toHaveBeenCalledWith('hashchange', jasmine.any(Function));
+  });
+
+  it('can schedule a navigation from the NavigationEnd event #37460', async (done) => {
+    @NgModule({
+      imports: [
+        BrowserModule,
+        RouterModule.forRoot(
+            [
+              {path: 'a', component: SimpleCmp},
+              {path: 'b', component: SimpleCmp},
+            ],
+            )
+      ],
+      declarations: [RootCmp, SimpleCmp],
+      bootstrap: [RootCmp],
+      providers: [...testProviders],
+    })
+    class TestModule {
+    }
+
+    const res = await platformBrowserDynamic([]).bootstrapModule(TestModule);
+    const router = res.injector.get(Router);
+    router.events.subscribe(() => {
+      expect(router.getCurrentNavigation()?.id).toBeDefined();
+    });
+    router.events.subscribe(async (e) => {
+      if (e instanceof NavigationEnd && e.url === '/b') {
+        await router.navigate(['a']);
+        done();
+      }
+    });
+    await router.navigateByUrl('/b');
   });
 });

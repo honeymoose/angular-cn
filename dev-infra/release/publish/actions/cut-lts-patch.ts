@@ -7,22 +7,11 @@
  */
 
 import {ListChoiceOptions, prompt} from 'inquirer';
-import * as semver from 'semver';
 
+import {semverInc} from '../../../utils/semver';
 import {ActiveReleaseTrains} from '../../versioning/active-release-trains';
-import {semverInc} from '../../versioning/inc-semver';
-import {fetchLongTermSupportBranchesFromNpm} from '../../versioning/long-term-support';
+import {fetchLongTermSupportBranchesFromNpm, LtsBranch} from '../../versioning/long-term-support';
 import {ReleaseAction} from '../actions';
-
-/** Interface describing an LTS version branch. */
-interface LtsBranch {
-  /** Name of the branch. */
-  name: string;
-  /** Most recent version for the given LTS branch. */
-  version: semver.SemVer;
-  /** NPM dist tag for the LTS version. */
-  npmDistTag: string;
-}
 
 /**
  * Release action that cuts a new patch release for an active release-train in the long-term
@@ -33,19 +22,20 @@ export class CutLongTermSupportPatchAction extends ReleaseAction {
   /** Promise resolving an object describing long-term support branches. */
   ltsBranches = fetchLongTermSupportBranchesFromNpm(this.config);
 
-  async getDescription() {
+  override async getDescription() {
     const {active} = await this.ltsBranches;
     return `Cut a new release for an active LTS branch (${active.length} active).`;
   }
 
-  async perform() {
+  override async perform() {
     const ltsBranch = await this._promptForTargetLtsBranch();
     const newVersion = semverInc(ltsBranch.version, 'patch');
-    const {id} = await this.checkoutBranchAndStageVersion(newVersion, ltsBranch.name);
+    const {pullRequest, releaseNotes} =
+        await this.checkoutBranchAndStageVersion(newVersion, ltsBranch.name);
 
-    await this.waitForPullRequestToBeMerged(id);
-    await this.buildAndPublish(newVersion, ltsBranch.name, ltsBranch.npmDistTag);
-    await this.cherryPickChangelogIntoNextBranch(newVersion, ltsBranch.name);
+    await this.waitForPullRequestToBeMerged(pullRequest);
+    await this.buildAndPublish(releaseNotes, ltsBranch.name, ltsBranch.npmDistTag);
+    await this.cherryPickChangelogIntoNextBranch(releaseNotes, ltsBranch.name);
   }
 
   /** Prompts the user to select an LTS branch for which a patch should but cut. */
@@ -84,7 +74,7 @@ export class CutLongTermSupportPatchAction extends ReleaseAction {
     return {name: `v${branch.version.major} (from ${branch.name})`, value: branch};
   }
 
-  static async isActive(active: ActiveReleaseTrains) {
+  static override async isActive(active: ActiveReleaseTrains) {
     // LTS patch versions can be only cut if there are release trains in LTS phase.
     // This action is always selectable as we support publishing of old LTS branches,
     // and have prompt for selecting an LTS branch when the action performs.

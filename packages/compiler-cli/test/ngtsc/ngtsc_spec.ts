@@ -54,6 +54,25 @@ function allTests(os: string) {
       env.tsconfig();
     });
 
+    it('should accept relative file paths as command line argument', () => {
+      env.addCommandLineArgs('--rootDir', './rootDir');
+      env.write('rootDir/test.html', '<p>Hello World</p>');
+      env.write('rootDir/test.ts', `
+        import {Component} from '@angular/core';
+
+        @Component({
+          selector: 'test-cmp',
+          templateUrl: 'test.html',
+        })
+        export class TestCmp {}
+    `);
+
+      env.driveMain();
+
+      const jsContents = env.getContents('test.js');
+      expect(jsContents).toContain('Hello World');
+    });
+
     it('should compile Injectables without errors', () => {
       env.write('test.ts', `
         import {Injectable} from '@angular/core';
@@ -74,8 +93,8 @@ function allTests(os: string) {
       expect(jsContents).toContain('Service.ɵprov =');
       expect(jsContents).not.toContain('__decorate');
       const dtsContents = env.getContents('test.d.ts');
-      expect(dtsContents).toContain('static ɵprov: i0.ɵɵInjectableDef<Dep>;');
-      expect(dtsContents).toContain('static ɵprov: i0.ɵɵInjectableDef<Service>;');
+      expect(dtsContents).toContain('static ɵprov: i0.ɵɵInjectableDeclaration<Dep>;');
+      expect(dtsContents).toContain('static ɵprov: i0.ɵɵInjectableDeclaration<Service>;');
       expect(dtsContents).toContain('static ɵfac: i0.ɵɵFactoryDeclaration<Dep, never>;');
       expect(dtsContents).toContain('static ɵfac: i0.ɵɵFactoryDeclaration<Service, never>;');
     });
@@ -95,7 +114,7 @@ function allTests(os: string) {
       expect(jsContents).toContain('Store.ɵprov =');
       const dtsContents = env.getContents('test.d.ts');
       expect(dtsContents).toContain('static ɵfac: i0.ɵɵFactoryDeclaration<Store<any>, never>;');
-      expect(dtsContents).toContain('static ɵprov: i0.ɵɵInjectableDef<Store<any>>;');
+      expect(dtsContents).toContain('static ɵprov: i0.ɵɵInjectableDeclaration<Store<any>>;');
     });
 
     it('should compile Injectables with providedIn without errors', () => {
@@ -123,8 +142,8 @@ function allTests(os: string) {
       expect(jsContents).toContain('providedIn: \'root\' })');
       expect(jsContents).not.toContain('__decorate');
       const dtsContents = env.getContents('test.d.ts');
-      expect(dtsContents).toContain('static ɵprov: i0.ɵɵInjectableDef<Dep>;');
-      expect(dtsContents).toContain('static ɵprov: i0.ɵɵInjectableDef<Service>;');
+      expect(dtsContents).toContain('static ɵprov: i0.ɵɵInjectableDeclaration<Dep>;');
+      expect(dtsContents).toContain('static ɵprov: i0.ɵɵInjectableDeclaration<Service>;');
       expect(dtsContents).toContain('static ɵfac: i0.ɵɵFactoryDeclaration<Dep, never>;');
       expect(dtsContents).toContain('static ɵfac: i0.ɵɵFactoryDeclaration<Service, never>;');
     });
@@ -150,7 +169,7 @@ function allTests(os: string) {
       expect(jsContents).toContain(', providedIn: \'root\' });');
       expect(jsContents).not.toContain('__decorate');
       const dtsContents = env.getContents('test.d.ts');
-      expect(dtsContents).toContain('static ɵprov: i0.ɵɵInjectableDef<Service>;');
+      expect(dtsContents).toContain('static ɵprov: i0.ɵɵInjectableDeclaration<Service>;');
       expect(dtsContents).toContain('static ɵfac: i0.ɵɵFactoryDeclaration<Service, never>;');
     });
 
@@ -179,8 +198,43 @@ function allTests(os: string) {
       expect(jsContents).toContain('return r; }, providedIn: \'root\' });');
       expect(jsContents).not.toContain('__decorate');
       const dtsContents = env.getContents('test.d.ts');
-      expect(dtsContents).toContain('static ɵprov: i0.ɵɵInjectableDef<Service>;');
+      expect(dtsContents).toContain('static ɵprov: i0.ɵɵInjectableDeclaration<Service>;');
       expect(dtsContents).toContain('static ɵfac: i0.ɵɵFactoryDeclaration<Service, never>;');
+    });
+
+    it('should compile Injectables with providedIn using forwardRef without errors', () => {
+      env.write('test.ts', `
+        import {Injectable, NgModule, forwardRef} from '@angular/core';
+
+        @Injectable()
+        export class Dep {}
+
+        @Injectable({ providedIn: forwardRef(() => Mod) })
+        export class Service {
+          constructor(dep: Dep) {}
+        }
+
+        @NgModule()
+        export class Mod {}
+    `);
+
+      env.driveMain();
+
+      const jsContents = env.getContents('test.js');
+      expect(jsContents).toContain('Dep.ɵprov =');
+      expect(jsContents).toContain('Service.ɵprov =');
+      expect(jsContents).toContain('Mod.ɵmod =');
+      expect(jsContents)
+          .toContain(
+              'Service.ɵfac = function Service_Factory(t) { return new (t || Service)(i0.ɵɵinject(Dep)); };');
+      expect(jsContents).toContain('providedIn: i0.forwardRef(function () { return Mod; }) })');
+      expect(jsContents).not.toContain('__decorate');
+      const dtsContents = env.getContents('test.d.ts');
+      expect(dtsContents).toContain('static ɵprov: i0.ɵɵInjectableDeclaration<Dep>;');
+      expect(dtsContents).toContain('static ɵprov: i0.ɵɵInjectableDeclaration<Service>;');
+      expect(dtsContents).toContain('static ɵfac: i0.ɵɵFactoryDeclaration<Dep, never>;');
+      expect(dtsContents).toContain('static ɵfac: i0.ɵɵFactoryDeclaration<Service, never>;');
+      expect(dtsContents).toContain('i0.ɵɵFactoryDeclaration<Mod, never>;');
     });
 
     it('should compile @Injectable with an @Optional dependency', () => {
@@ -703,7 +757,9 @@ function allTests(os: string) {
         // ModuleA classes
 
         @Pipe({name: 'number'})
-        class PipeA {}
+        class PipeA {
+          transform() {}
+        }
 
         @NgModule({
           declarations: [PipeA],
@@ -714,7 +770,9 @@ function allTests(os: string) {
         // ModuleB classes
 
         @Pipe({name: 'number'})
-        class PipeB {}
+        class PipeB {
+          transform() {}
+        }
 
         @Component({
           selector: 'app',
@@ -746,7 +804,9 @@ function allTests(os: string) {
             // ModuleA classes
 
             @Pipe({name: 'number'})
-            class PipeA {}
+            class PipeA {
+              transform() {}
+            }
 
             @NgModule({
               declarations: [PipeA],
@@ -757,7 +817,9 @@ function allTests(os: string) {
             // ModuleB classes
 
             @Pipe({name: 'number'})
-            class PipeB {}
+            class PipeB {
+              transform() {}
+            }
 
             @NgModule({
               declarations: [PipeB],
@@ -1496,6 +1558,60 @@ function allTests(os: string) {
       expect(jsContents).toContain('exports: function () { return [BarModule]; }');
     });
 
+    it('should use relative import for forward references that were resolved from a relative file',
+       () => {
+         env.write('dir.ts', `
+          import {Directive, forwardRef} from '@angular/core';
+
+          export const useFoo = forwardRef(() => Foo);
+
+          @Directive({selector: 'foo'})
+          export class Foo {}
+          `);
+         env.write('test.ts', `
+          import {NgModule} from '@angular/core';
+          import {useFoo} from './dir';
+
+          @NgModule({
+            declarations: [useFoo],
+          })
+          export class FooModule {}
+        `);
+
+         env.driveMain();
+
+         const jsContents = env.getContents('test.js');
+         expect(jsContents).toContain('import * as i1 from "./dir";');
+         expect(jsContents).toContain('declarations: [i1.Foo]');
+       });
+
+    it('should use absolute import for forward references that were resolved from an absolute file',
+       () => {
+         env.write('dir.ts', `
+          import {Directive, forwardRef} from '@angular/core';
+
+          export const useFoo = forwardRef(() => Foo);
+
+          @Directive({selector: 'foo'})
+          export class Foo {}
+          `);
+         env.write('test.ts', `
+          import {forwardRef, NgModule} from '@angular/core';
+          import {useFoo} from 'dir';
+
+          @NgModule({
+            declarations: [useFoo],
+          })
+          export class FooModule {}
+        `);
+
+         env.driveMain();
+
+         const jsContents = env.getContents('test.js');
+         expect(jsContents).toContain('import * as i1 from "dir";');
+         expect(jsContents).toContain('declarations: [i1.Foo]');
+       });
+
     it('should compile Pipes without errors', () => {
       env.write('test.ts', `
         import {Pipe} from '@angular/core';
@@ -1593,7 +1709,9 @@ function allTests(os: string) {
         import {Component, NgModule, Pipe} from '@angular/core';
 
         @Pipe({name: 'test'})
-        export class TestPipe {}
+        export class TestPipe {
+          transform() {}
+        }
 
         @Component({selector: 'test-cmp', template: '{{value | test}}'})
         export class TestCmp {
@@ -2140,10 +2258,10 @@ function allTests(os: string) {
 
         // Validate that each class's .d.ts declaration also has an injectable
         // definition.
-        expect(dtsContents).toContain('InjectableDef<TestCmp');
-        expect(dtsContents).toContain('InjectableDef<TestDir');
-        expect(dtsContents).toContain('InjectableDef<TestPipe');
-        expect(dtsContents).toContain('InjectableDef<TestNgModule');
+        expect(dtsContents).toContain('ɵɵInjectableDeclaration<TestCmp');
+        expect(dtsContents).toContain('ɵɵInjectableDeclaration<TestDir');
+        expect(dtsContents).toContain('ɵɵInjectableDeclaration<TestPipe');
+        expect(dtsContents).toContain('ɵɵInjectableDeclaration<TestNgModule');
       });
 
       it('should not compile a component and a directive annotation on the same class', () => {
@@ -4594,7 +4712,7 @@ function allTests(os: string) {
 
       env.driveMain();
       const jsContents = trim(env.getContents('test.js'));
-      expect(jsContents).toContain(`import { KeyCodes } from './keycodes';`);
+      expect(jsContents).toContain(`import * as i1 from "./keycodes";`);
       expect(jsContents).toMatch(setClassMetadataRegExp('type: i1.KeyCodes'));
     });
 
@@ -4776,6 +4894,41 @@ function allTests(os: string) {
           template: 'does not use a-cmp',
         })
         export class BCmp {}
+      `);
+        env.driveMain();
+        const jsContents = env.getContents('test.js');
+        expect(jsContents).not.toContain('setComponentScope');
+      });
+
+      it('should not consider type-only imports during cycle detection', () => {
+        env.write('test.ts', `
+        import {NgModule} from '@angular/core';
+        import {ACmp} from './a';
+        import {BCmp} from './b';
+
+        @NgModule({declarations: [ACmp, BCmp]})
+        export class Module {}
+      `);
+        env.write('a.ts', `
+        import {Component} from '@angular/core';
+
+        @Component({
+          selector: 'a-cmp',
+          template: '<b-cmp></b-cmp>',
+        })
+        export class ACmp {}
+      `);
+        env.write('b.ts', `
+        import {Component} from '@angular/core';
+        import type {ACmp} from './a';
+
+        @Component({
+          selector: 'b-cmp',
+          template: 'does not use a-cmp',
+        })
+        export class BCmp {
+          a: ACmp;
+        }
       `);
         env.driveMain();
         const jsContents = env.getContents('test.js');
@@ -7341,6 +7494,24 @@ export const Foo = Foo__PRE_R3__;
         expect(jsContents).not.toContain('defineNgModule(');
         expect(jsContents).toContain('NgModule({');
       });
+
+      it('should still compile a class that is indirectly exported', () => {
+        env.write('test.ts', `
+          import {Component} from '@angular/core';
+
+          @Component({
+            selector: 'test-cmp',
+            template: 'Test Cmp',
+          })
+          class TestCmp {}
+
+          export {TestCmp};
+        `);
+        env.driveMain();
+        const jsContents = env.getContents('test.js');
+
+        expect(jsContents).toContain('defineComponent');
+      });
     });
 
     describe('undecorated providers', () => {
@@ -7744,6 +7915,111 @@ export const Foo = Foo__PRE_R3__;
           expect(diags[1].messageText)
               .toContain(
                   'Parser Error: Bindings cannot contain assignments at column 5 in [ {{x = 2}}]');
+        });
+      });
+
+      describe('shadow DOM selector diagnostics', () => {
+        it('should emit a diagnostic when a selector does not include a hyphen', () => {
+          env.write('test.ts', `
+            import {Component, ViewEncapsulation} from '@angular/core';
+            @Component({
+              template: '',
+              selector: 'cmp',
+              encapsulation: ViewEncapsulation.ShadowDom
+            })
+            export class TestCmp {}
+          `);
+          const diags = env.driveDiagnostics();
+
+          expect(diags.length).toBe(1);
+          expect(diags[0].messageText)
+              .toBe(
+                  'Selector of a component that uses ViewEncapsulation.ShadowDom must contain a hyphen.');
+          expect(getDiagnosticSourceCode(diags[0])).toBe(`'cmp'`);
+        });
+
+        it('should emit a diagnostic when a selector includes uppercase letters', () => {
+          env.write('test.ts', `
+            import {Component, ViewEncapsulation} from '@angular/core';
+            @Component({
+              template: '',
+              selector: 'my-Comp',
+              encapsulation: ViewEncapsulation.ShadowDom
+            })
+            export class TestCmp {}
+          `);
+          const diags = env.driveDiagnostics();
+
+          expect(diags.length).toBe(1);
+          expect(diags[0].messageText)
+              .toBe('Selector of a ShadowDom-encapsulated component must all be in lower case.');
+          expect(getDiagnosticSourceCode(diags[0])).toBe(`'my-Comp'`);
+        });
+
+        it('should emit a diagnostic when a selector starts with a digit', () => {
+          env.write('test.ts', `
+            import {Component, ViewEncapsulation} from '@angular/core';
+            @Component({
+              template: '',
+              selector: '123-comp',
+              encapsulation: ViewEncapsulation.ShadowDom
+            })
+            export class TestCmp {}
+          `);
+          const diags = env.driveDiagnostics();
+
+          expect(diags.length).toBe(1);
+          expect(diags[0].messageText)
+              .toBe(
+                  'Selector of a ShadowDom-encapsulated component must start with a lower case letter.');
+          expect(getDiagnosticSourceCode(diags[0])).toBe(`'123-comp'`);
+        });
+
+        it('should emit a diagnostic when a selector starts with a hyphen', () => {
+          env.write('test.ts', `
+            import {Component, ViewEncapsulation} from '@angular/core';
+            @Component({
+              template: '',
+              selector: '-comp',
+              encapsulation: ViewEncapsulation.ShadowDom
+            })
+            export class TestCmp {}
+          `);
+          const diags = env.driveDiagnostics();
+
+          expect(diags.length).toBe(1);
+          expect(diags[0].messageText)
+              .toBe(
+                  'Selector of a ShadowDom-encapsulated component must start with a lower case letter.');
+          expect(getDiagnosticSourceCode(diags[0])).toBe(`'-comp'`);
+        });
+
+        it('should not emit a diagnostic for a component using an attribute selector', () => {
+          env.write('test.ts', `
+            import {Component, ViewEncapsulation} from '@angular/core';
+            @Component({
+              template: '',
+              selector: '[button]',
+              encapsulation: ViewEncapsulation.ShadowDom
+            })
+            export class TestCmp {}
+          `);
+          const diags = env.driveDiagnostics();
+          expect(diags.length).toBe(0);
+        });
+
+        it('should not emit a diagnostic for a component using a class selector', () => {
+          env.write('test.ts', `
+            import {Component, ViewEncapsulation} from '@angular/core';
+            @Component({
+              template: '',
+              selector: '.button',
+              encapsulation: ViewEncapsulation.ShadowDom
+            })
+            export class TestCmp {}
+          `);
+          const diags = env.driveDiagnostics();
+          expect(diags.length).toBe(0);
         });
       });
 

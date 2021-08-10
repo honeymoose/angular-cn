@@ -8,7 +8,7 @@
 
 import * as semver from 'semver';
 
-import {semverInc} from '../../versioning/inc-semver';
+import {semverInc} from '../../../utils/semver';
 import {computeNewPrereleaseVersionForNext} from '../../versioning/next-prerelease-version';
 import {ReleaseTrain} from '../../versioning/release-trains';
 import {ReleaseAction} from '../actions';
@@ -21,27 +21,28 @@ export class CutNextPrereleaseAction extends ReleaseAction {
   /** Promise resolving with the new version if a NPM next pre-release is cut. */
   private _newVersion: Promise<semver.SemVer> = this._computeNewVersion();
 
-  async getDescription() {
+  override async getDescription() {
     const {branchName} = this._getActivePrereleaseTrain();
     const newVersion = await this._newVersion;
     return `Cut a new next pre-release for the "${branchName}" branch (v${newVersion}).`;
   }
 
-  async perform() {
+  override async perform() {
     const releaseTrain = this._getActivePrereleaseTrain();
     const {branchName} = releaseTrain;
     const newVersion = await this._newVersion;
 
-    const {id} = await this.checkoutBranchAndStageVersion(newVersion, branchName);
+    const {pullRequest, releaseNotes} =
+        await this.checkoutBranchAndStageVersion(newVersion, branchName);
 
-    await this.waitForPullRequestToBeMerged(id);
-    await this.buildAndPublish(newVersion, branchName, 'next');
+    await this.waitForPullRequestToBeMerged(pullRequest);
+    await this.buildAndPublish(releaseNotes, branchName, 'next');
 
     // If the pre-release has been cut from a branch that is not corresponding
     // to the next release-train, cherry-pick the changelog into the primary
     // development branch. i.e. the `next` branch that is usually `master`.
     if (releaseTrain !== this.active.next) {
-      await this.cherryPickChangelogIntoNextBranch(newVersion, branchName);
+      await this.cherryPickChangelogIntoNextBranch(releaseNotes, branchName);
     }
   }
 
@@ -63,7 +64,7 @@ export class CutNextPrereleaseAction extends ReleaseAction {
     }
   }
 
-  static async isActive() {
+  static override async isActive() {
     // Pre-releases for the `next` NPM dist tag can always be cut. Depending on whether
     // there is a feature-freeze/release-candidate branch, the next pre-releases are either
     // cut from such a branch, or from the actual `next` release-train branch (i.e. master).

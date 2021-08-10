@@ -9,7 +9,7 @@
 import {initMockFileSystem} from '../../file_system/testing';
 import {TypeCheckingConfig} from '../api';
 
-import {ALL_ENABLED_CONFIG, tcb, TestDeclaration, TestDirective} from './test_utils';
+import {ALL_ENABLED_CONFIG, tcb, TestDeclaration, TestDirective} from '../testing';
 
 
 describe('type check blocks', () => {
@@ -48,6 +48,13 @@ describe('type check blocks', () => {
     const TEMPLATE = `{{a ? b : c ? d : e}}`;
     expect(tcb(TEMPLATE))
         .toContain('(((ctx).a) ? ((ctx).b) : ((((ctx).c) ? ((ctx).d) : (((ctx).e)))))');
+  });
+
+  it('should handle nullish coalescing operator', () => {
+    expect(tcb('{{ a ?? b }}')).toContain('((((ctx).a)) ?? (((ctx).b)))');
+    expect(tcb('{{ a ?? b ?? c }}')).toContain('(((((ctx).a)) ?? (((ctx).b))) ?? (((ctx).c)))');
+    expect(tcb('{{ (a ?? b) + (c ?? e) }}'))
+        .toContain('(((((ctx).a)) ?? (((ctx).b))) + ((((ctx).c)) ?? (((ctx).e))))');
   });
 
   it('should handle quote expressions as any type', () => {
@@ -985,17 +992,18 @@ describe('type check blocks', () => {
         const DISABLED_CONFIG: TypeCheckingConfig = {...BASE_CONFIG, checkTypeOfPipes: false};
         const block = tcb(TEMPLATE, PIPES, DISABLED_CONFIG);
         expect(block).toContain('var _pipe1: i0.TestPipe = null!;');
-        expect(block).toContain('((_pipe1 as any).transform(((ctx).a), ((ctx).b), ((ctx).c)));');
+        expect(block).toContain('((_pipe1.transform as any)(((ctx).a), ((ctx).b), ((ctx).c))');
       });
     });
 
     describe('config.strictSafeNavigationTypes', () => {
-      const TEMPLATE = `{{a?.b}} {{a?.method()}}`;
+      const TEMPLATE = `{{a?.b}} {{a?.method()}} {{a?.[0]}}`;
 
       it('should use undefined for safe navigation operations when enabled', () => {
         const block = tcb(TEMPLATE, DIRECTIVES);
         expect(block).toContain('(null as any ? (((ctx).a))!.method() : undefined)');
         expect(block).toContain('(null as any ? (((ctx).a))!.b : undefined)');
+        expect(block).toContain('(null as any ? (((ctx).a))![0] : undefined)');
       });
       it('should use an \'any\' type for safe navigation operations when disabled', () => {
         const DISABLED_CONFIG:
@@ -1003,15 +1011,17 @@ describe('type check blocks', () => {
         const block = tcb(TEMPLATE, DIRECTIVES, DISABLED_CONFIG);
         expect(block).toContain('((((ctx).a))!.method() as any)');
         expect(block).toContain('((((ctx).a))!.b as any)');
+        expect(block).toContain('(((((ctx).a))![0] as any)');
       });
     });
 
     describe('config.strictSafeNavigationTypes (View Engine bug emulation)', () => {
-      const TEMPLATE = `{{a.method()?.b}} {{a()?.method()}}`;
+      const TEMPLATE = `{{a.method()?.b}} {{a()?.method()}} {{a.method()?.[0]}}`;
       it('should check the presence of a property/method on the receiver when enabled', () => {
         const block = tcb(TEMPLATE, DIRECTIVES);
         expect(block).toContain('(null as any ? ((((ctx).a)).method())!.b : undefined)');
         expect(block).toContain('(null as any ? ((ctx).a())!.method() : undefined)');
+        expect(block).toContain('(null as any ? ((((ctx).a)).method())![0] : undefined)');
       });
       it('should not check the presence of a property/method on the receiver when disabled', () => {
         const DISABLED_CONFIG:
@@ -1019,6 +1029,7 @@ describe('type check blocks', () => {
         const block = tcb(TEMPLATE, DIRECTIVES, DISABLED_CONFIG);
         expect(block).toContain('(((((ctx).a)).method()) as any).b');
         expect(block).toContain('(((ctx).a()) as any).method()');
+        expect(block).toContain('(((((ctx).a)).method()) as any)[0]');
       });
     });
 

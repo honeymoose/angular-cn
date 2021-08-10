@@ -7,9 +7,9 @@
  */
 
 import {parseCommitMessage} from './parse';
+import {commitMessageBuilder, CommitMessageParts} from './test-util';
 
-
-const commitValues = {
+const commitValues: CommitMessageParts = {
   prefix: '',
   type: 'fix',
   npmScope: '',
@@ -19,12 +19,7 @@ const commitValues = {
   footer: 'Closes #1',
 };
 
-function buildCommitMessage(params: Partial<typeof commitValues> = {}) {
-  const {prefix, npmScope, type, scope, summary, body, footer} = {...commitValues, ...params};
-  const scopeSlug = npmScope ? `${npmScope}/${scope}` : scope;
-  return `${prefix}${type}${scopeSlug ? '(' + scopeSlug + ')' : ''}: ${summary}\n\n${body}\n\n${
-      footer}`;
-}
+const buildCommitMessage = commitMessageBuilder(commitValues);
 
 
 describe('commit message parsing:', () => {
@@ -140,6 +135,15 @@ describe('commit message parsing:', () => {
       expect(parsedMessage.breakingChanges[0].text).toBe(`${summary}\n\n${description}`);
       expect(parsedMessage.breakingChanges.length).toBe(1);
     });
+
+    it('only when keyword is at the beginning of a line', () => {
+      const message = buildCommitMessage({
+        body: 'This changes how the `BREAKING CHANGE: ` commit message note\n' +
+            'keyword is detected for the changelog.',
+      });
+      const parsedMessage = parseCommitMessage(message);
+      expect(parsedMessage.breakingChanges.length).toBe(0);
+    });
   });
 
   describe('parses deprecation notes', () => {
@@ -172,6 +176,15 @@ describe('commit message parsing:', () => {
       const parsedMessage = parseCommitMessage(message);
       expect(parsedMessage.deprecations[0].text).toBe(`${summary}\n\n${description}`);
       expect(parsedMessage.deprecations.length).toBe(1);
+    });
+
+    it('only when keyword is at the beginning of a line', () => {
+      const message = buildCommitMessage({
+        body: 'This changes how the `DEPRECATED: ` commit message note\n' +
+            'keyword is detected for the changelog.',
+      });
+      const parsedMessage = parseCommitMessage(message);
+      expect(parsedMessage.deprecations.length).toBe(0);
     });
   });
 });

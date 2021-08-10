@@ -7,6 +7,7 @@ import { MatSidenav } from '@angular/material/sidenav';
 import { By, Title } from '@angular/platform-browser';
 import { ElementsLoader } from 'app/custom-elements/elements-loader';
 import { DocumentService } from 'app/documents/document.service';
+import { CookiesPopupComponent } from 'app/layout/cookies-popup/cookies-popup.component';
 import { DocViewerComponent } from 'app/layout/doc-viewer/doc-viewer.component';
 import { CurrentNodes } from 'app/navigation/navigation.model';
 import { NavigationNode, NavigationService } from 'app/navigation/navigation.service';
@@ -588,7 +589,7 @@ describe('AppComponent', () => {
     });
 
     describe('restrainScrolling()', () => {
-      const preventedScrolling = (currentTarget: object, deltaY: number) => {
+      const preventedScrolling = (currentTarget: { scrollTop: number, scrollHeight?: number, clientHeight?: number }, deltaY: number) => {
         const evt = {
           deltaY,
           currentTarget,
@@ -698,6 +699,13 @@ describe('AppComponent', () => {
       it('should have version number', () => {
         const versionEl: HTMLElement = fixture.debugElement.query(By.css('aio-footer')).nativeElement;
         expect(versionEl.textContent).toContain(TestHttpClient.versionInfo.full);
+      });
+    });
+
+    describe('aio-cookies-popup', () => {
+      it('should have a cookies popup', () => {
+        const cookiesPopupDe = fixture.debugElement.query(By.directive(CookiesPopupComponent));
+        expect(cookiesPopupDe.componentInstance).toBeInstanceOf(CookiesPopupComponent);
       });
     });
 
@@ -1120,8 +1128,9 @@ describe('AppComponent', () => {
         const host = fixture.debugElement;
         const classes: string = host.properties.className;
         const classArray = classes.split(' ').filter(c => c.indexOf(`${type}-`) === 0);
-        expect(classArray.length).toBeLessThanOrEqual(1, `"${classes}" should have only one class matching ${type}-*`);
-        expect(classArray).toEqual([`${type}-${value}`], `"${classes}" should contain ${type}-${value}`);
+        expect(classArray.length).withContext(`"${classes}" should have only one class matching ${type}-*`)
+            .toBeLessThanOrEqual(1);
+        expect(classArray).withContext(`"${classes}" should contain ${type}-${value}`).toEqual([`${type}-${value}`]);
       }
     });
 
@@ -1302,7 +1311,6 @@ class TestHttpClient {
     { title: 'v2', url: 'https://v2.angular.io' }
   ];
 
-  // tslint:disable:quotemark
   navJson = {
     TopBar: [
       {

@@ -14,6 +14,7 @@
     "strictPropertyInitialization": true,
     "outDir": "../dist/all/@angular",
     "noImplicitAny": true,
+    "noImplicitOverride": true,
     "noFallthroughCasesInSwitch": true,
     "paths": {
       "selenium-webdriver": ["./node_modules/@types/selenium-webdriver/index.d.ts"],
@@ -37,6 +38,7 @@
     "bazel",
     "common/locales",
     "compiler-cli/integrationtest",
+    "compiler-cli/test/compliance",
     "core/schematics",
     "elements/schematics",
     // Do not build the example package because there are no legacy tests that need to be

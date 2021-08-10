@@ -6,6 +6,7 @@
  * found in the LICENSE file at https://angular.io/license
  */
 
+import {runfiles} from '@bazel/runfiles';
 import * as crypto from 'crypto';
 import {createPatch} from 'diff';
 import * as fs from 'fs';

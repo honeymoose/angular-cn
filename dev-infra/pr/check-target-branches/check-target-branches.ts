@@ -8,7 +8,7 @@
 
 import {getConfig} from '../../utils/config';
 import {error, info, red} from '../../utils/console';
-import {GitClient} from '../../utils/git/index';
+import {GitClient} from '../../utils/git/git-client';
 import {loadAndValidateConfig, TargetLabel} from '../merge/config';
 import {getBranchesFromTargetLabel, getTargetLabelFromPullRequest, InvalidTargetLabelError} from '../merge/target-label';
 
@@ -17,8 +17,8 @@ export async function getTargetBranchesForPr(prNumber: number) {
   const config = getConfig();
   /** Repo owner and name for the github repository. */
   const {owner, name: repo} = config.github;
-  /** The git client to get a Github API service instance. */
-  const git = new GitClient(undefined, config);
+  /** The singleton instance of the GitClient. */
+  const git = GitClient.get();
   /** The validated merge config. */
   const {config: mergeConfig, errors} = await loadAndValidateConfig(config, git.github);
   if (errors !== undefined) {
@@ -27,7 +27,11 @@ export async function getTargetBranchesForPr(prNumber: number) {
   /** The current state of the pull request from Github. */
   const prData = (await git.github.pulls.get({owner, repo, pull_number: prNumber})).data;
   /** The list of labels on the PR as strings. */
-  const labels = prData.labels.map(l => l.name);
+  // Note: The `name` property of labels is always set but the Github OpenAPI spec is incorrect
+  // here.
+  // TODO(devversion): Remove the non-null cast once
+  // https://github.com/github/rest-api-description/issues/169 is fixed.
+  const labels = prData.labels.map(l => l.name!);
   /** The branch targetted via the Github UI. */
   const githubTargetBranch = prData.base.ref;
   /** The active label which is being used for targetting the PR. */

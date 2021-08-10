@@ -23,9 +23,9 @@ ts_library(
         "//packages/compiler-cli/src/ngtsc/incremental/semantic_graph",
         "//packages/compiler-cli/src/ngtsc/indexer",
         "//packages/compiler-cli/src/ngtsc/metadata",
-        "//packages/compiler-cli/src/ngtsc/modulewithproviders",
         "//packages/compiler-cli/src/ngtsc/partial_evaluator",
         "//packages/compiler-cli/src/ngtsc/perf",
+        "//packages/compiler-cli/src/ngtsc/program_driver",
         "//packages/compiler-cli/src/ngtsc/reflection",
         "//packages/compiler-cli/src/ngtsc/resource",
         "//packages/compiler-cli/src/ngtsc/routing",
@@ -38,6 +38,7 @@ ts_library(
         "//packages/compiler-cli/src/ngtsc/typecheck/api",
         "//packages/compiler-cli/src/ngtsc/typecheck/diagnostics",
         "//packages/compiler-cli/src/ngtsc/util",
+        "//packages/compiler-cli/src/ngtsc/xi18n",
         "@npm//typescript",
     ],
 )

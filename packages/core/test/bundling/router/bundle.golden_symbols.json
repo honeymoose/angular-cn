@@ -738,6 +738,12 @@
     "name": "SimpleChange"
   },
   {
+    "name": "SimpleInnerSubscriber"
+  },
+  {
+    "name": "SimpleOuterSubscriber"
+  },
+  {
     "name": "SkipSelf"
   },
   {
@@ -925,6 +931,9 @@
   },
   {
     "name": "_testabilityGetter"
+  },
+  {
+    "name": "_wrapInTimeout"
   },
   {
     "name": "absoluteRedirect"
@@ -1305,9 +1314,6 @@
     "name": "getData"
   },
   {
-    "name": "getDebugContext"
-  },
-  {
     "name": "getDeclarationTNode"
   },
   {
@@ -1495,6 +1501,9 @@
   },
   {
     "name": "injectableDefOrInjectorDefFactory"
+  },
+  {
+    "name": "innerSubscribe"
   },
   {
     "name": "insertBloom"
@@ -1819,6 +1828,9 @@
   },
   {
     "name": "removeFromArray"
+  },
+  {
+    "name": "removeStyle"
   },
   {
     "name": "renderComponent"
