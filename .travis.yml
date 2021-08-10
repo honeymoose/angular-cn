@@ -12,7 +12,7 @@ env:
     - CHROME_BIN=chromium-browser
     - LATEST_RELEASE=4.0.0
     # Temporarily disabled until there is a new release branch for 4.0.0
-    # - LATEST_RELEASE_BRANCH=2.4.x
+    # - LATEST_RELEASE_BRANCH=2.4.xk
     - TASK_FLAGS="--dgeni-log=warn"
   matrix:
     # current angular release jobs

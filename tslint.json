@@ -1,107 +1,97 @@
 {
-  "rulesDirectory": [
-    "dist/tools/tslint",
-    "node_modules/vrsource-tslint-rules/rules",
-    "node_modules/tslint-eslint-rules/dist/rules",
-    "node_modules/tslint-no-toplevel-property-access/rules"
-  ],
   "rules": {
-    "file-header": [
+    "class-name": true,
+    "comment-format": [
       true,
-      {
-        "match": "Copyright Google LLC",
-        "allow-single-line-comments": false
-      }
+      "check-space"
     ],
+    "curly": true,
+    "eofline": true,
+    "forin": true,
+    "indent": [
+      true,
+      "spaces"
+    ],
+    "label-position": true,
+    "label-undefined": true,
+    "max-line-length": [
+      true,
+      140
+    ],
+    "member-access": false,
+    "no-arg": true,
+    "no-bitwise": true,
     "no-console": [
       true,
-      "log"
+      "debug",
+      "info",
+      "time",
+      "timeEnd",
+      "trace"
     ],
     "no-construct": true,
-    "no-duplicate-imports": true,
+    "no-debugger": true,
+    "no-duplicate-key": true,
     "no-duplicate-variable": true,
-    "no-jasmine-focus": true,
+    "no-empty": false,
+    "no-eval": true,
+    "no-inferrable-types": true,
+    "no-string-literal": false,
+    "no-switch-case-fall-through": true,
+    "no-trailing-whitespace": true,
+    "no-unused-expression": true,
+    "no-unused-variable": true,
+    "no-unreachable": true,
+    "no-use-before-declare": true,
     "no-var-keyword": true,
-    "prefer-literal": [
+    "object-literal-sort-keys": false,
+    "one-line": [
       true,
-      "object"
+      "check-open-brace",
+      "check-catch",
+      "check-else",
+      "check-whitespace"
     ],
-    "require-internal-with-underscore": true,
-    "no-toplevel-property-access": [
+    "quotemark": [
       true,
-      "packages/animations/src/",
-      "packages/animations/browser/",
-      "packages/common/src/",
-      "packages/core/src/",
-      "packages/elements/src/",
-      "packages/forms/src/",
-      "packages/platform-browser/src/",
-      "packages/router/src/"
+      "single"
     ],
+    "radix": true,
     "semicolon": [
-      true
+      "always"
     ],
-    "variable-name": [
+    "triple-equals": [
       true,
-      "ban-keywords"
+      "allow-null-check"
     ],
-    "no-inner-declarations": [
-      true,
-      "function"
-    ],
-    "no-debugger": true
-  },
-  "jsRules": {
-    "file-header": [
+    "typedef-whitespace": [
       true,
       {
-        "match": "Copyright Google LLC",
-        "allow-single-line-comments": false
+        "call-signature": "nospace",
+        "index-signature": "nospace",
+        "parameter": "nospace",
+        "property-declaration": "nospace",
+        "variable-declaration": "nospace"
       }
     ],
-    "no-console": [
+    "variable-name": false,
+    "whitespace": [
       true,
-      "log"
+      "check-branch",
+      "check-decl",
+      "check-operator",
+      "check-separator",
+      "check-type"
     ],
-    "no-duplicate-imports": true,
-    "no-duplicate-variable": true,
-    "no-jasmine-focus": true,
-    "require-internal-with-underscore": true,
-    "semicolon": [
-      true
-    ],
-    "variable-name": [
-      true,
-      "ban-keywords"
-    ],
-    "no-inner-declarations": [
-      true,
-      "function"
-    ]
-  },
-  "linterOptions": {
-    "exclude": [
-      "**/node_modules/**/*",
-      // Ignore AIO and integration tests.
-      "./aio/**/*",
-      "./integration/**/*",
-      // Ignore output directories
-      "./built/**/*",
-      "./dist/**/*",
-      "./bazel-out/**/*",
-      // Ignore special files
-      "**/*.externs.js",
-      // Ignore test files
-      "./packages/compiler-cli/test/compliance/test_cases/**/*",
-      "./packages/localize/**/test_files/**/*",
-      "./tools/ts-api-guardian/test/fixtures/**/*",
-      "./tools/public_api_guard/**/*.d.ts",
-      "./modules/benchmarks_external/**/*",
-      // Ignore zone.js directory
-      // TODO(JiaLiPassion): add zone.js back later
-      "./packages/zone.js/**/*",
-      "./dev-infra/ng-dev.js",
-      "./dev-infra/build-worker.js"
-    ]
+
+    "component-selector-name": [true, "kebab-case"],
+    "component-selector-type": [true, "element"],
+    "use-input-property-decorator": true,
+    "use-output-property-decorator": true,
+    "use-life-cycle-interface": true,
+    "use-pipe-transform-interface": true,
+    "component-class-suffix": true,
+    "directive-class-suffix": true,
+    "import-destructuring-spacing": true
   }
 }

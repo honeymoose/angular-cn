@@ -1,159 +1,38 @@
-<h1 align="center">Angular - One framework. Mobile & desktop.</h1>
+# Angular.io
+Angular.io is currently the preview site for Angular 2. This site also includes links to other helpful angular resources including Angular 1, Angular Material, and AngularFire.
 
-<p align="center">
-  <img src="aio/src/assets/images/logos/angular/angular.png" alt="angular-logo" width="120px" height="120px"/>
-  <br>
-  <i>Angular is a development platform for building mobile and desktop web applications
-    <br> using Typescript/JavaScript and other languages.</i>
-  <br>
-</p>
+## How you can help
+- [File an issue on github](https://github.com/angular/angular.io/issues)
+- [Contribute to Angular.io](https://github.com/angular/angular.js/blob/master/CONTRIBUTING.md)
 
-<p align="center">
-  <a href="https://www.angular.io"><strong>www.angular.io</strong></a>
-  <br>
-</p>
-
-<p align="center">
-  <a href="CONTRIBUTING.md">Contributing Guidelines</a>
-  ·
-  <a href="https://github.com/angular/angular/issues">Submit an Issue</a>
-  ·
-  <a href="https://blog.angular.io/">Blog</a>
-  <br>
-  <br>
-</p>
-
-<p align="center">
-  <a href="https://circleci.com/gh/angular/workflows/angular/tree/master">
-    <img src="https://img.shields.io/circleci/build/github/angular/angular/master.svg?logo=circleci&logoColor=fff&label=CircleCI" alt="CI status" />
-  </a>&nbsp;
-  <a href="https://www.npmjs.com/@angular/core">
-    <img src="https://img.shields.io/npm/v/@angular/core.svg?logo=npm&logoColor=fff&label=NPM+package&color=limegreen" alt="Angular on npm" />
-  </a>&nbsp;
-  <a href="https://discord.gg/angular">
-    <img src="https://img.shields.io/discord/463752820026376202.svg?logo=discord&logoColor=fff&label=Discord&color=7389d8" alt="Discord conversation" />
-  </a>
-</p>
-
-<hr>
-
-## Documentation
-
-Get started with Angular, learn the fundamentals and explore advanced topics on our documentation website.
-
-- [Getting Started][quickstart]
-- [Architecture][architecture]
-- [Components and Templates][componentstemplates]
-- [Forms][forms]
-- [API][api]
-
-### Advanced
-
-- [Angular Elements][angularelements]
-- [Server Side Rendering][ssr]
-- [Schematics][schematics]
-- [Lazy Loading][lazyloading]
 
 ## Development Setup
+1. Install version 0.17 of [Harp](http://harpjs.com/) (This is the current harp version.)
+2. cd into root directory `angular.io/`
+3. run `harp server`
+4. Open this url in the browser: [http://localhost:9000/](http://localhost:9000/)
 
-### Prerequisites
+## Development setup with watches
+ 1. cd into root directory `angular.io/`
+ 2. run `gulp serve-and-watch`
+ 3. Open this url in the browser: [http://localhost:9000/](http://localhost:9000/)
+ 4. Refresh your browser to see any changes.
 
-- Install [Node.js] which includes [Node Package Manager][npm]
+## Development setup with watches and browser reload
+ 1. cd into root directory `angular.io/`
+ 2. run `gulp serve-and-sync`
+ 3. browser will launch ( on localhost:3000 instead of localhost:9000) and stay refreshed automatically.
 
-### Setting Up a Project
+## Technology Used
+- Angular 1.x: The production ready version of Angular
+- Angular Material: An implementation of Material Design in Angular.js
+- Harp: The static web server with built-in preprocessing.
+- Sass: A professional grade CSS extension language
+- Normalize: A modern, HTML5-ready alternative to CSS resets
+- Grids: A highly customizable CSS Grid Framework built with Sass
+- Prettify: A JS module and CSS for syntax highlighting of source code snippets.
+- Icomoon: Custom built icon fonts
 
-Install the Angular CLI globally:
 
-```
-npm install -g @angular/cli
-```
-
-Create workspace:
-
-```
-ng new [PROJECT NAME]
-```
-
-Run the application:
-
-```
-cd [PROJECT NAME]
-ng serve
-```
-
-Angular is cross-platform, fast, scalable, has incredible tooling, and is loved by millions.
-
-## Quickstart
-
-[Get started in 5 minutes][quickstart].
-
-## Ecosystem
-
-<p>
-  <img src="/docs/images/angular-ecosystem-logos.png" alt="angular ecosystem logos" width="500px" height="auto">
-</p>
-
-- [Angular Command Line (CLI)][cli]
-- [Angular Material][angularmaterial]
-
-## Changelog
-
-[Learn about the latest improvements][changelog].
-
-## Upgrading
-
-Check out our [upgrade guide](https://update.angular.io/) to find out the best way to upgrade your project.
-
-## Contributing
-
-### Contributing Guidelines
-
-Read through our [contributing guidelines][contributing] to learn about our submission process, coding rules and more.
-
-### Want to Help?
-
-Want to file a bug, contribute some code, or improve documentation? Excellent! Read up on our guidelines for [contributing][contributing] and then check out one of our issues labeled as <kbd>[help wanted](https://github.com/angular/angular/labels/help%20wanted)</kbd> or <kbd>[good first issue](https://github.com/angular/angular/labels/good%20first%20issue)</kbd>.
-
-### Code of Conduct
-
-Help us keep Angular open and inclusive. Please read and follow our [Code of Conduct][codeofconduct].
-
-## Community
-
-Join the conversation and help the community.
-
-- [Twitter][twitter]
-- [Discord][discord]
-- [Gitter][gitter]
-- [YouTube][youtube]
-- [StackOverflow][stackoverflow]
-- Find a Local [Meetup][meetup]
-
-[![Love Angular badge](https://img.shields.io/badge/angular-love-blue?logo=angular&angular=love)](https://www.github.com/angular/angular)
-
-**Love Angular? Give our repo a star :star: :arrow_up:.**
-
-[contributing]: CONTRIBUTING.md
-[quickstart]: https://angular.io/start
-[changelog]: CHANGELOG.md
-[ng]: https://angular.io
-[documentation]: https://angular.io/docs
-[angularmaterial]: https://material.angular.io/
-[cli]: https://cli.angular.io/
-[architecture]: https://angular.io/guide/architecture
-[componentstemplates]: https://angular.io/guide/displaying-data
-[forms]: https://angular.io/guide/forms-overview
-[api]: https://angular.io/api
-[angularelements]: https://angular.io/guide/elements
-[ssr]: https://angular.io/guide/universal
-[schematics]: https://angular.io/guide/schematics
-[lazyloading]: https://angular.io/guide/lazy-loading-ngmodules
-[node.js]: https://nodejs.org/
-[npm]: https://www.npmjs.com/get-npm
-[codeofconduct]: CODE_OF_CONDUCT.md
-[twitter]: https://www.twitter.com/angular
-[discord]: https://discord.gg/angular
-[gitter]: https://gitter.im/angular/angular
-[stackoverflow]: https://stackoverflow.com/questions/tagged/angular
-[youtube]: https://youtube.com/angular
-[meetup]: https://www.meetup.com/find/?keywords=angular"
+## License
+Powered by Google ©2010-2015. Code licensed under the [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0). Documentation licensed under [CC BY 3.0](http://creativecommons.org/licenses/by/3.0/).
