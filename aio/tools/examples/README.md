@@ -47,9 +47,6 @@ Currently, the following project types are supported:
 There are also the following special folders:
 - `common`: Contains files used in many examples.
   (See the [next section](#example-config) for info on how to exclude common files in certain examples.)
-- `viewengine/cli`: Additional configuration for running CLI-based examples with `ViewEngine` (the pre-Ivy compiler/renderer).
-  This applies to all CLI-based examples, such as `cli-ajs`, `elements`, `getting-started`, etc.
-- `viewengine/systemjs`: Additional configuration for running SystemJS-based examples with `ViewEngine` (the pre-Ivy compiler/renderer).
 
 
 <a name="example-config"></a>
@@ -89,7 +86,7 @@ The file is expected to contain a JSON object with zero or more of the following
       "cmd": "yarn",
       "args": [
         "e2e",
-        "--prod",
+        "--configuration=production",
         "--protractor-config=e2e/protractor-puppeteer.conf.js",
         "--no-webdriver-update",
         "--port={PORT}"
@@ -121,12 +118,10 @@ This will be picked up by the default testing command (see the [example configur
 If you are using a custom test command, make sure e2e specs are picked up (if applicable).
 
 For SystemJS-based examples, create an `e2e-spec.ts` file inside the example root folder.
-These apps will be tested with the following command:
+These apps will be tested with the following command (and an optional `outputFile` to receive log messages):
 
 ```sh
-yarn protractor aio/tools/examples/shared/protractor.config.js \
-  --specs=<example-folder>/e2e-spec.ts \
-  --params.appDir=<example-folder>
+yarn protractor [--params.outputFile=path/to/logfile.txt]
 ```
 
 
@@ -140,9 +135,9 @@ It will remove all files that are not tracked by git, **including any new files 
 So, be sure to commit your work before removing the boilerplate.
 
 
-### `run-example-e2e.js`
+### `run-example-e2e.mjs`
 
-The [run-example-e2e.js](./run-example-e2e.js) script will find and run the e2e tests for all examples.
+The [run-example-e2e.mjs](./run-example-e2e.mjs) script will find and run the e2e tests for all examples.
 Although it only runs e2e tests by default, it can be configured to run any test command (for CLI-based examples) by using the `tests` property of the [example-config.json](#example-config) file.
 It is named `*-e2e` for historical reasons, but it is not limited to running e2e tests.
 

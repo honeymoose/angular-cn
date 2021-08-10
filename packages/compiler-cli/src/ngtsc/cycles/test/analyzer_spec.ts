@@ -36,6 +36,22 @@ runInEachFileSystem(() => {
       expect(importPath(cycle!.getPath())).toEqual('b,a,b');
     });
 
+    it('should deal with cycles', () => {
+      // a -> b -> c -> d
+      //      ^---------/
+      const {program, analyzer} = makeAnalyzer('a:b;b:c;c:d;d:b');
+      const a = getSourceFileOrError(program, (_('/a.ts')));
+      const b = getSourceFileOrError(program, (_('/b.ts')));
+      const c = getSourceFileOrError(program, (_('/c.ts')));
+      const d = getSourceFileOrError(program, (_('/d.ts')));
+      expect(analyzer.wouldCreateCycle(a, b)).toBe(null);
+      expect(analyzer.wouldCreateCycle(a, c)).toBe(null);
+      expect(analyzer.wouldCreateCycle(a, d)).toBe(null);
+      expect(analyzer.wouldCreateCycle(b, a)).not.toBe(null);
+      expect(analyzer.wouldCreateCycle(b, c)).not.toBe(null);
+      expect(analyzer.wouldCreateCycle(b, d)).not.toBe(null);
+    });
+
     it('should detect a cycle with a re-export in the chain', () => {
       const {program, analyzer} = makeAnalyzer('a:*b;b:c;c');
       const a = getSourceFileOrError(program, (_('/a.ts')));
@@ -69,6 +85,17 @@ runInEachFileSystem(() => {
       const cycle = analyzer.wouldCreateCycle(b, c);
       expect(cycle).toBeInstanceOf(Cycle);
       expect(importPath(cycle!.getPath())).toEqual('b,c,b');
+    });
+
+    it('should not consider type-only imports', () => {
+      const {program, analyzer} = makeAnalyzer('a:b,c!;b;c');
+      const a = getSourceFileOrError(program, (_('/a.ts')));
+      const b = getSourceFileOrError(program, (_('/b.ts')));
+      const c = getSourceFileOrError(program, (_('/c.ts')));
+      expect(analyzer.wouldCreateCycle(c, a)).toBe(null);
+      const cycle = analyzer.wouldCreateCycle(b, a);
+      expect(cycle).toBeInstanceOf(Cycle);
+      expect(importPath(cycle!.getPath())).toEqual('b,a,b');
     });
   });
 

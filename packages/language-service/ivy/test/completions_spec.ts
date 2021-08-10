@@ -24,6 +24,18 @@ const DIR_WITH_INPUT = {
   `
 };
 
+const DIR_WITH_UNION_TYPE_INPUT = {
+  'Dir': `
+    @Directive({
+      selector: '[dir]',
+      inputs: ['myInput']
+    })
+    export class Dir {
+      myInput!: 'foo'|42|null|undefined
+    }
+  `
+};
+
 const DIR_WITH_OUTPUT = {
   'Dir': `
     @Directive({
@@ -98,6 +110,19 @@ const SOME_PIPE = {
     })
     export class SomePipe {
       transform(value: string): string {
+        return value;
+      }
+    }
+   `
+};
+
+const UNION_TYPE_PIPE = {
+  'UnionTypePipe': `
+    @Pipe({
+      name: 'unionTypePipe',
+    })
+    export class UnionTypePipe {
+      transform(value: string, config: 'foo' | 'bar'): string {
         return value;
       }
     }
@@ -203,6 +228,30 @@ describe('completions', () => {
       const completions = templateFile.getCompletionsAtPosition();
       expectContain(completions, ts.ScriptElementKind.memberVariableElement, ['title']);
     });
+
+    it('should return completions of string literals, number literals, `true`, `false`, `null` and `undefined`',
+       () => {
+         const {templateFile} = setup(`<input dir [myInput]="">`, '', DIR_WITH_UNION_TYPE_INPUT);
+         templateFile.moveCursorToText('dir [myInput]="¦">');
+
+         const completions = templateFile.getCompletionsAtPosition();
+         expectContain(completions, ts.ScriptElementKind.string, [`'foo'`, '42']);
+         expectContain(completions, ts.ScriptElementKind.keyword, ['null']);
+         expectContain(completions, ts.ScriptElementKind.variableElement, ['undefined']);
+         expectDoesNotContain(completions, ts.ScriptElementKind.parameterElement, ['ctx']);
+       });
+
+    it('should return completions of string literals, number literals, `true`, `false`, `null` and `undefined` when the user tries to modify the symbol',
+       () => {
+         const {templateFile} = setup(`<input dir [myInput]="a">`, '', DIR_WITH_UNION_TYPE_INPUT);
+         templateFile.moveCursorToText('dir [myInput]="a¦">');
+
+         const completions = templateFile.getCompletionsAtPosition();
+         expectContain(completions, ts.ScriptElementKind.string, [`'foo'`, '42']);
+         expectContain(completions, ts.ScriptElementKind.keyword, ['null']);
+         expectContain(completions, ts.ScriptElementKind.variableElement, ['undefined']);
+         expectDoesNotContain(completions, ts.ScriptElementKind.parameterElement, ['ctx']);
+       });
   });
 
   describe('in an expression scope', () => {
@@ -562,6 +611,10 @@ describe('completions', () => {
                  unsafeCastDisplayInfoKindToScriptElementKind(DisplayInfoKind.DIRECTIVE),
                  ['ngFor']);
              expectReplacementText(completions, templateFile.contents, 'ng');
+             const details = templateFile.getCompletionEntryDetails(
+                 'ngFor', /* formatOptions */ undefined,
+                 /* preferences */ undefined)!;
+             expect(toText(details.displayParts)).toEqual('(directive) NgFor.NgFor: NgFor');
            });
 
         it('should return structural directive completions for just the structural marker', () => {
@@ -721,6 +774,50 @@ describe('completions', () => {
       expect(completions?.entries.length).toBe(0);
     });
   });
+
+  describe('literal primitive scope', () => {
+    it('should complete a string union types in square brackets binding', () => {
+      const {templateFile} = setup(`<input dir [myInput]="'foo'">`, '', DIR_WITH_UNION_TYPE_INPUT);
+      templateFile.moveCursorToText(`[myInput]="'foo¦'"`);
+      const completions = templateFile.getCompletionsAtPosition();
+      expectContain(completions, ts.ScriptElementKind.string, ['foo']);
+      expectReplacementText(completions, templateFile.contents, 'foo');
+    });
+
+    it('should complete a string union types in binding without brackets', () => {
+      const {templateFile} = setup(`<input dir myInput="foo">`, '', DIR_WITH_UNION_TYPE_INPUT);
+      templateFile.moveCursorToText('myInput="foo¦"');
+      const completions = templateFile.getCompletionsAtPosition();
+      expectContain(completions, ts.ScriptElementKind.string, ['foo']);
+      expectReplacementText(completions, templateFile.contents, 'foo');
+    });
+
+    it('should complete a string union types in binding without brackets when the cursor at the start of the string',
+       () => {
+         const {templateFile} = setup(`<input dir myInput="foo">`, '', DIR_WITH_UNION_TYPE_INPUT);
+         templateFile.moveCursorToText('myInput="¦foo"');
+         const completions = templateFile.getCompletionsAtPosition();
+         expectContain(completions, ts.ScriptElementKind.string, ['foo']);
+         expectReplacementText(completions, templateFile.contents, 'foo');
+       });
+
+    it('should complete a string union types in pipe', () => {
+      const {templateFile} =
+          setup(`<input dir [myInput]="'foo'|unionTypePipe:'bar'">`, '', UNION_TYPE_PIPE);
+      templateFile.moveCursorToText(`[myInput]="'foo'|unionTypePipe:'bar¦'"`);
+      const completions = templateFile.getCompletionsAtPosition();
+      expectContain(completions, ts.ScriptElementKind.string, ['bar']);
+      expectReplacementText(completions, templateFile.contents, 'bar');
+    });
+
+    it('should complete a number union types', () => {
+      const {templateFile} = setup(`<input dir [myInput]="42">`, '', DIR_WITH_UNION_TYPE_INPUT);
+      templateFile.moveCursorToText(`[myInput]="42¦"`);
+      const completions = templateFile.getCompletionsAtPosition();
+      expectContain(completions, ts.ScriptElementKind.string, ['42']);
+      expectReplacementText(completions, templateFile.contents, '42');
+    });
+  });
 });
 
 function expectContain(
@@ -789,7 +886,7 @@ function setup(
         export class AppCmp {
           ${classContents}
         }
-        
+
         ${otherDirectiveClassDecls}
 
         @NgModule({
@@ -822,7 +919,7 @@ function setupInlineTemplate(
         export class AppCmp {
           ${classContents}
         }
-        
+
         ${otherDirectiveClassDecls}
 
         @NgModule({

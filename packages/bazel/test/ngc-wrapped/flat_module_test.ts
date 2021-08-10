@@ -7,6 +7,7 @@
  */
 
 import {obsoleteInIvy, onlyInIvy} from '@angular/private/testing';
+import {runfiles} from '@bazel/runfiles';
 import {existsSync, readFileSync} from 'fs';
 import {dirname, join} from 'path';
 

@@ -8,8 +8,8 @@ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 # Fetch rules_nodejs so we can install our npm dependencies
 http_archive(
     name = "build_bazel_rules_nodejs",
-    sha256 = "bfacf15161d96a6a39510e7b3d3b522cf61cb8b82a31e79400a84c5abcab5347",
-    urls = ["https://github.com/bazelbuild/rules_nodejs/releases/download/3.2.1/rules_nodejs-3.2.1.tar.gz"],
+    sha256 = "4681ca88d512d57196d064d1441549080d8d17d119174a1229d1717a16a4a489",
+    urls = ["https://github.com/bazelbuild/rules_nodejs/releases/download/4.0.0-beta.1/rules_nodejs-4.0.0-beta.1.tar.gz"],
 )
 
 # Check the rules_nodejs version and download npm dependencies
@@ -21,7 +21,7 @@ check_rules_nodejs_version(minimum_version_string = "2.2.0")
 
 # Setup the Node.js toolchain
 node_repositories(
-    node_version = "12.14.1",
+    node_version = "14.16.1",
     package_json = ["//:package.json"],
 )
 
@@ -34,11 +34,6 @@ yarn_install(
     yarn_lock = "//:yarn.lock",
 )
 
-# Load angular dependencies
-load("//packages/bazel:package.bzl", "rules_angular_dev_dependencies")
-
-rules_angular_dev_dependencies()
-
 # Load protractor dependencies
 load("@npm//@bazel/protractor:package.bzl", "npm_bazel_protractor_dependencies")
 
@@ -49,40 +44,21 @@ load("@io_bazel_rules_webtesting//web:repositories.bzl", "web_test_repositories"
 
 web_test_repositories()
 
-load("//dev-infra/browsers:browser_repositories.bzl", "browser_repositories")
+load("//dev-infra/bazel/browsers:browser_repositories.bzl", "browser_repositories")
 
 browser_repositories()
 
-# Setup the rules_sass toolchain
-load("@io_bazel_rules_sass//:defs.bzl", "sass_repositories")
+load("//packages/common/locales/generate-locales-tool:cldr-data.bzl", "cldr_data_repository")
 
-sass_repositories()
-
-# Setup the skydoc toolchain
-load("@io_bazel_skydoc//skylark:skylark.bzl", "skydoc_repositories")
-
-skydoc_repositories()
-
-load("@bazel_toolchains//rules:environments.bzl", "clang_env")
-load("@bazel_toolchains//rules:rbe_repo.bzl", "rbe_autoconfig")
-
-rbe_autoconfig(
-    name = "rbe_ubuntu1604_angular",
-    # Need to specify a base container digest in order to ensure that we can use the checked-in
-    # platform configurations for the "ubuntu16_04" image. Otherwise the autoconfig rule would
-    # need to pull the image and run it in order determine the toolchain configuration. See:
-    # https://github.com/bazelbuild/bazel-toolchains/blob/4.0.0/configs/ubuntu16_04_clang/versions.bzl
-    base_container_digest = "sha256:f6568d8168b14aafd1b707019927a63c2d37113a03bcee188218f99bd0327ea1",
-    # Note that if you change the `digest`, you might also need to update the
-    # `base_container_digest` to make sure marketplace.gcr.io/google/rbe-ubuntu16-04-webtest:<digest>
-    # and marketplace.gcr.io/google/rbe-ubuntu16-04:<base_container_digest> have
-    # the same Clang and JDK installed. Clang is needed because of the dependency on
-    # @com_google_protobuf. Java is needed for the Bazel's test executor Java tool.
-    digest = "sha256:dddaaddbe07a61c2517f9b08c4977fc23c4968fcb6c0b8b5971e955d2de7a961",
-    env = clang_env(),
-    registry = "marketplace.gcr.io",
-    # We can't use the default "ubuntu16_04" RBE image provided by the autoconfig because we need
-    # a specific Linux kernel that comes with "libx11" in order to run headless browser tests.
-    repository = "google/rbe-ubuntu16-04-webtest",
-    use_checked_in_confs = "Force",
+cldr_data_repository(
+    name = "cldr_data",
+    # Since we use the Github archives for CLDR 37, we need to specify a path
+    # to the available locales. This wouldn't be needed with CLDR 39 as that
+    # comes with an official JSON archive not containing a version suffix.
+    available_locales_path = "cldr-core-37.0.0/availableLocales.json",
+    urls = {
+        "https://github.com/unicode-cldr/cldr-core/archive/37.0.0.zip": "32b5c49c3874aa342b90412c207b42e7aefb2435295891fb714c34ce58b3c706",
+        "https://github.com/unicode-cldr/cldr-dates-full/archive/37.0.0.zip": "e1c410dd8ad7d75df4a5393efaf5d28f0d56c0fa126c5d66e171a3f21a988a1e",
+        "https://github.com/unicode-cldr/cldr-numbers-full/archive/37.0.0.zip": "a921b90cf7f436e63fbdd55880f96e39a203acd9e174b0ceafa20a02c242a12e",
+    },
 )

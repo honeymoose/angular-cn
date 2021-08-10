@@ -50,6 +50,12 @@ export enum ErrorCode {
    */
   COMPONENT_RESOURCE_NOT_FOUND = 2008,
 
+  /**
+   * Raised when a component uses `ShadowDom` view encapsulation, but its selector
+   * does not match the shadow DOM tag name requirements.
+   */
+  COMPONENT_INVALID_SHADOW_DOM_SELECTOR = 2009,
+
   SYMBOL_NOT_EXPORTED = 3001,
   SYMBOL_EXPORTED_UNDER_DIFFERENT_NAME = 3002,
   /**
@@ -111,6 +117,12 @@ export enum ErrorCode {
   NGMODULE_DECLARATION_NOT_UNIQUE = 6007,
 
   /**
+   * Not actually raised by the compiler, but reserved for documentation of a View Engine error when
+   * a View Engine build depends on an Ivy-compiled NgModule.
+   */
+  NGMODULE_VE_DEPENDENCY_ON_IVY_LIB = 6999,
+
+  /**
    * An element name failed validation against the DOM schema.
    */
   SCHEMA_INVALID_ELEMENT = 8001,
@@ -153,6 +165,22 @@ export enum ErrorCode {
    * ```
    */
   DUPLICATE_VARIABLE_DECLARATION = 8006,
+
+  /**
+   * A template has a two way binding (two bindings created by a single syntactial element)
+   * in which the input and output are going to different places.
+   */
+  SPLIT_TWO_WAY_BINDING = 8007,
+
+  /**
+   * A two way binding in a template has an incorrect syntax,
+   * parentheses outside brackets. For example:
+   *
+   * ```
+   * <div ([foo])="bar" />
+   * ```
+   */
+  INVALID_BANANA_IN_BOX = 8101,
 
   /**
    * The template type-checking engine would need to generate an inline type check block for a
@@ -209,6 +237,7 @@ export const COMPILER_ERRORS_WITH_GUIDES = new Set([
   ErrorCode.SCHEMA_INVALID_ELEMENT,
   ErrorCode.SCHEMA_INVALID_ATTRIBUTE,
   ErrorCode.MISSING_REFERENCE_TARGET,
+  ErrorCode.COMPONENT_INVALID_SHADOW_DOM_SELECTOR,
 ]);
 
 /**

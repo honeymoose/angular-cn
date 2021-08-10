@@ -18,10 +18,11 @@ export const DOC_CONTENT_URL_PREFIX = CONTENT_URL_PREFIX + 'docs/';
 const FETCHING_ERROR_CONTENTS = (path: string) => `
   <div class="nf-container l-flex-wrap flex-center">
     <div class="nf-icon material-icons">error_outline</div>
-    <div class="nf-response l-flex-wrap">
-      <h1 class="no-toc">Request for document failed.</h1>
+    <div class="nf-response l-flex-wrap center">
+      <h1 class="no-toc">Request for document failed</h1>
       <p>
         We are unable to retrieve the "${path}" page at this time.
+        <br/>
         Please check your connection and try again later.
       </p>
     </div>
@@ -53,7 +54,7 @@ export class DocumentService {
   }
 
   private fetchDocument(id: string): Observable<DocumentContents> {
-    const requestPath = `${DOC_CONTENT_URL_PREFIX}${id}.json`;
+    const requestPath = `${DOC_CONTENT_URL_PREFIX}${encodeToLowercase(id)}.json`;
     const subject = new AsyncSubject<DocumentContents>();
 
     this.logger.log('fetching document from', requestPath);
@@ -66,9 +67,9 @@ export class DocumentService {
             throw Error('Invalid data');
           }
         }),
-        catchError((error: HttpErrorResponse) => {
-          return error.status === 404 ? this.getFileNotFoundDoc(id) : this.getErrorDoc(id, error);
-        }),
+        catchError((error: HttpErrorResponse) =>
+          error.status === 404 ? this.getFileNotFoundDoc(id) : this.getErrorDoc(id, error)
+        ),
       )
       .subscribe(subject);
 
@@ -96,4 +97,16 @@ export class DocumentService {
       contents: FETCHING_ERROR_CONTENTS(id),
     });
   }
+}
+
+/**
+ * Encode the path to the content in a deterministic, reversible, case-insensitive form.
+ *
+ * This avoids collisions on case-insensitive file-systems.
+ *
+ * - Escape underscores (_) to double underscores (__).
+ * - Convert all uppercase letters to lowercase followed by an underscore.
+ */
+function encodeToLowercase(str: string): string {
+  return str.replace(/[A-Z_]/g, char => char.toLowerCase() + '_');
 }

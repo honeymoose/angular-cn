@@ -12,9 +12,10 @@ import {NgCompiler} from '@angular/compiler-cli/src/ngtsc/core';
 import {ErrorCode, ngErrorCode} from '@angular/compiler-cli/src/ngtsc/diagnostics';
 import {absoluteFrom, absoluteFromSourceFile, AbsoluteFsPath} from '@angular/compiler-cli/src/ngtsc/file_system';
 import {PerfPhase} from '@angular/compiler-cli/src/ngtsc/perf';
+import {FileUpdate, ProgramDriver} from '@angular/compiler-cli/src/ngtsc/program_driver';
 import {isNamedClassDeclaration} from '@angular/compiler-cli/src/ngtsc/reflection';
 import {TypeCheckShimGenerator} from '@angular/compiler-cli/src/ngtsc/typecheck';
-import {OptimizeFor, TypeCheckingProgramStrategy} from '@angular/compiler-cli/src/ngtsc/typecheck/api';
+import {OptimizeFor} from '@angular/compiler-cli/src/ngtsc/typecheck/api';
 import {findFirstMatchingNode} from '@angular/compiler-cli/src/ngtsc/typecheck/src/comments';
 import * as ts from 'typescript/lib/tsserverlibrary';
 
@@ -25,7 +26,9 @@ import {CompilerFactory} from './compiler_factory';
 import {CompletionBuilder, CompletionNodeContext} from './completions';
 import {DefinitionBuilder} from './definitions';
 import {QuickInfoBuilder} from './quick_info';
-import {ReferencesAndRenameBuilder} from './references';
+import {ReferencesBuilder, RenameBuilder} from './references_and_rename';
+import {createLocationKey} from './references_and_rename_utils';
+import {getSignatureHelp} from './signature_help';
 import {getTargetAtPosition, TargetContext, TargetNodeKind} from './template_target';
 import {findTightestNode, getClassDeclFromDecoratorProp, getPropertyAssignmentFromValue} from './ts_utils';
 import {getTemplateInfoAtPosition, isTypeScriptFile} from './utils';
@@ -41,7 +44,7 @@ interface LanguageServiceConfig {
 export class LanguageService {
   private options: CompilerOptions;
   readonly compilerFactory: CompilerFactory;
-  private readonly strategy: TypeCheckingProgramStrategy;
+  private readonly programDriver: ProgramDriver;
   private readonly adapter: LanguageServiceAdapter;
   private readonly parseConfigHost: LSParseConfigHost;
 
@@ -53,9 +56,9 @@ export class LanguageService {
     this.parseConfigHost = new LSParseConfigHost(project.projectService.host);
     this.options = parseNgCompilerOptions(project, this.parseConfigHost, config);
     logCompilerOptions(project, this.options);
-    this.strategy = createTypeCheckingProgramStrategy(project);
+    this.programDriver = createProgramDriver(project);
     this.adapter = new LanguageServiceAdapter(project);
-    this.compilerFactory = new CompilerFactory(this.adapter, this.strategy, this.options);
+    this.compilerFactory = new CompilerFactory(this.adapter, this.programDriver, this.options);
     this.watchConfigFile(project);
   }
 
@@ -68,7 +71,7 @@ export class LanguageService {
       const ttc = compiler.getTemplateTypeChecker();
       const diagnostics: ts.Diagnostic[] = [];
       if (isTypeScriptFile(fileName)) {
-        const program = compiler.getNextProgram();
+        const program = compiler.getCurrentProgram();
         const sourceFile = program.getSourceFile(fileName);
         if (sourceFile) {
           const ngDiagnostics = compiler.getDiagnosticsForFile(sourceFile, OptimizeFor.SingleFile);
@@ -112,10 +115,10 @@ export class LanguageService {
   getDefinitionAndBoundSpan(fileName: string, position: number): ts.DefinitionInfoAndBoundSpan
       |undefined {
     return this.withCompilerAndPerfTracing(PerfPhase.LsDefinition, (compiler) => {
-      if (!isInAngularContext(compiler.getNextProgram(), fileName, position)) {
+      if (!isInAngularContext(compiler.getCurrentProgram(), fileName, position)) {
         return undefined;
       }
-      return new DefinitionBuilder(this.tsLS, compiler)
+      return new DefinitionBuilder(this.tsLS, compiler, this.programDriver)
           .getDefinitionAndBoundSpan(fileName, position);
     });
   }
@@ -123,10 +126,10 @@ export class LanguageService {
   getTypeDefinitionAtPosition(fileName: string, position: number):
       readonly ts.DefinitionInfo[]|undefined {
     return this.withCompilerAndPerfTracing(PerfPhase.LsDefinition, (compiler) => {
-      if (!isTemplateContext(compiler.getNextProgram(), fileName, position)) {
+      if (!isTemplateContext(compiler.getCurrentProgram(), fileName, position)) {
         return undefined;
       }
-      return new DefinitionBuilder(this.tsLS, compiler)
+      return new DefinitionBuilder(this.tsLS, compiler, this.programDriver)
           .getTypeDefinitionsAtPosition(fileName, position);
     });
   }
@@ -142,7 +145,7 @@ export class LanguageService {
       position: number,
       compiler: NgCompiler,
       ): ts.QuickInfo|undefined {
-    if (!isTemplateContext(compiler.getNextProgram(), fileName, position)) {
+    if (!isTemplateContext(compiler.getCurrentProgram(), fileName, position)) {
       return undefined;
     }
 
@@ -166,14 +169,15 @@ export class LanguageService {
 
   getReferencesAtPosition(fileName: string, position: number): ts.ReferenceEntry[]|undefined {
     return this.withCompilerAndPerfTracing(PerfPhase.LsReferencesAndRenames, (compiler) => {
-      return new ReferencesAndRenameBuilder(this.strategy, this.tsLS, compiler)
-          .getReferencesAtPosition(fileName, position);
+      const results = new ReferencesBuilder(this.programDriver, this.tsLS, compiler)
+                          .getReferencesAtPosition(fileName, position);
+      return results === undefined ? undefined : getUniqueLocations(results);
     });
   }
 
   getRenameInfo(fileName: string, position: number): ts.RenameInfo {
     return this.withCompilerAndPerfTracing(PerfPhase.LsReferencesAndRenames, (compiler) => {
-      const renameInfo = new ReferencesAndRenameBuilder(this.strategy, this.tsLS, compiler)
+      const renameInfo = new RenameBuilder(this.programDriver, this.tsLS, compiler)
                              .getRenameInfo(absoluteFrom(fileName), position);
       if (!renameInfo.canRename) {
         return renameInfo;
@@ -189,8 +193,9 @@ export class LanguageService {
 
   findRenameLocations(fileName: string, position: number): readonly ts.RenameLocation[]|undefined {
     return this.withCompilerAndPerfTracing(PerfPhase.LsReferencesAndRenames, (compiler) => {
-      return new ReferencesAndRenameBuilder(this.strategy, this.tsLS, compiler)
-          .findRenameLocations(fileName, position);
+      const results = new RenameBuilder(this.programDriver, this.tsLS, compiler)
+                          .findRenameLocations(fileName, position);
+      return results === null ? undefined : getUniqueLocations(results);
     });
   }
 
@@ -225,7 +230,7 @@ export class LanguageService {
   private getCompletionsAtPositionImpl(
       fileName: string, position: number, options: ts.GetCompletionsAtPositionOptions|undefined,
       compiler: NgCompiler): ts.WithMetadata<ts.CompletionInfo>|undefined {
-    if (!isTemplateContext(compiler.getNextProgram(), fileName, position)) {
+    if (!isTemplateContext(compiler.getCurrentProgram(), fileName, position)) {
       return undefined;
     }
 
@@ -239,9 +244,10 @@ export class LanguageService {
   getCompletionEntryDetails(
       fileName: string, position: number, entryName: string,
       formatOptions: ts.FormatCodeOptions|ts.FormatCodeSettings|undefined,
-      preferences: ts.UserPreferences|undefined): ts.CompletionEntryDetails|undefined {
+      preferences: ts.UserPreferences|undefined,
+      data: ts.CompletionEntryData|undefined): ts.CompletionEntryDetails|undefined {
     return this.withCompilerAndPerfTracing(PerfPhase.LsCompletions, (compiler) => {
-      if (!isTemplateContext(compiler.getNextProgram(), fileName, position)) {
+      if (!isTemplateContext(compiler.getCurrentProgram(), fileName, position)) {
         return undefined;
       }
 
@@ -249,14 +255,27 @@ export class LanguageService {
       if (builder === null) {
         return undefined;
       }
-      return builder.getCompletionEntryDetails(entryName, formatOptions, preferences);
+      return builder.getCompletionEntryDetails(entryName, formatOptions, preferences, data);
+    });
+  }
+
+  getSignatureHelpItems(fileName: string, position: number, options?: ts.SignatureHelpItemsOptions):
+      ts.SignatureHelpItems|undefined {
+    return this.withCompilerAndPerfTracing(PerfPhase.LsSignatureHelp, compiler => {
+      if (!isTemplateContext(compiler.getCurrentProgram(), fileName, position)) {
+        return undefined;
+      }
+
+      return getSignatureHelp(compiler, this.tsLS, fileName, position, options);
+
+      return undefined;
     });
   }
 
   getCompletionEntrySymbol(fileName: string, position: number, entryName: string): ts.Symbol
       |undefined {
     return this.withCompilerAndPerfTracing(PerfPhase.LsCompletions, (compiler) => {
-      if (!isTemplateContext(compiler.getNextProgram(), fileName, position)) {
+      if (!isTemplateContext(compiler.getCurrentProgram(), fileName, position)) {
         return undefined;
       }
 
@@ -265,7 +284,6 @@ export class LanguageService {
         return undefined;
       }
       const result = builder.getCompletionEntrySymbol(entryName);
-      this.compilerFactory.registerLastKnownProgram();
       return result;
     });
   }
@@ -359,8 +377,6 @@ export class LanguageService {
   private withCompilerAndPerfTracing<T>(phase: PerfPhase, p: (compiler: NgCompiler) => T): T {
     const compiler = this.compilerFactory.getOrCreate();
     const result = compiler.perfRecorder.inPhase(phase, () => p(compiler));
-    this.compilerFactory.registerLastKnownProgram();
-
     const logger = this.project.projectService.logger;
     if (logger.hasLevel(ts.server.LogLevel.verbose)) {
       logger.perftrc(`LanguageService#${PerfPhase[phase]}: ${
@@ -457,13 +473,9 @@ function parseNgCompilerOptions(
   return options;
 }
 
-function createTypeCheckingProgramStrategy(project: ts.server.Project):
-    TypeCheckingProgramStrategy {
+function createProgramDriver(project: ts.server.Project): ProgramDriver {
   return {
     supportsInlineOperations: false,
-    shimPathForComponent(component: ts.ClassDeclaration): AbsoluteFsPath {
-      return TypeCheckShimGenerator.shimFor(absoluteFromSourceFile(component.getSourceFile()));
-    },
     getProgram(): ts.Program {
       const program = project.getLanguageService().getProgram();
       if (!program) {
@@ -471,14 +483,17 @@ function createTypeCheckingProgramStrategy(project: ts.server.Project):
       }
       return program;
     },
-    updateFiles(contents: Map<AbsoluteFsPath, string>) {
-      for (const [fileName, newText] of contents) {
+    updateFiles(contents: Map<AbsoluteFsPath, FileUpdate>) {
+      for (const [fileName, {newText}] of contents) {
         const scriptInfo = getOrCreateTypeCheckScriptInfo(project, fileName);
         const snapshot = scriptInfo.getSnapshot();
         const length = snapshot.getLength();
         scriptInfo.editContent(0, length, newText);
       }
     },
+    getSourceFileVersion(sf: ts.SourceFile): string {
+      return project.getScriptVersion(sf.fileName);
+    }
   };
 }
 
@@ -552,4 +567,12 @@ function findTightestNodeAtPosition(program: ts.Program, fileName: string, posit
   }
 
   return findTightestNode(sourceFile, position);
+}
+
+function getUniqueLocations<T extends ts.DocumentSpan>(locations: readonly T[]): T[] {
+  const uniqueLocations: Map<string, T> = new Map();
+  for (const location of locations) {
+    uniqueLocations.set(createLocationKey(location), location);
+  }
+  return Array.from(uniqueLocations.values());
 }

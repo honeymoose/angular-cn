@@ -6,18 +6,19 @@
  * found in the LICENSE file at https://angular.io/license
  */
 
-import {CommonModule, Location} from '@angular/common';
+import {APP_BASE_HREF, CommonModule, Location, LOCATION_INITIALIZED, LocationStrategy, PlatformLocation} from '@angular/common';
 import {SpyLocation} from '@angular/common/testing';
-import {ChangeDetectionStrategy, Component, Injectable, NgModule, NgModuleFactoryLoader, NgModuleRef, NgZone, OnDestroy, ViewChild, ɵConsole as Console, ɵNoopNgZone as NoopNgZone} from '@angular/core';
+import {ChangeDetectionStrategy, Component, EventEmitter, Injectable, NgModule, NgModuleFactoryLoader, NgModuleRef, NgZone, OnDestroy, ViewChild, ɵConsole as Console, ɵNoopNgZone as NoopNgZone} from '@angular/core';
 import {ComponentFixture, fakeAsync, inject, TestBed, tick} from '@angular/core/testing';
-import {describe} from '@angular/core/testing/src/testing_internal';
 import {By} from '@angular/platform-browser/src/dom/debug/by';
 import {expect} from '@angular/platform-browser/testing/src/matchers';
 import {ActivatedRoute, ActivatedRouteSnapshot, ActivationEnd, ActivationStart, CanActivate, CanDeactivate, ChildActivationEnd, ChildActivationStart, DefaultUrlSerializer, DetachedRouteHandle, Event, GuardsCheckEnd, GuardsCheckStart, Navigation, NavigationCancel, NavigationEnd, NavigationError, NavigationStart, ParamMap, Params, PreloadAllModules, PreloadingStrategy, PRIMARY_OUTLET, Resolve, ResolveEnd, ResolveStart, RouteConfigLoadEnd, RouteConfigLoadStart, Router, RouteReuseStrategy, RouterEvent, RouterLink, RouterLinkWithHref, RouterModule, RouterPreloader, RouterStateSnapshot, RoutesRecognized, RunGuardsAndResolvers, UrlHandlingStrategy, UrlSegmentGroup, UrlSerializer, UrlTree} from '@angular/router';
-import {EMPTY, Observable, Observer, of, Subscription} from 'rxjs';
+import {EMPTY, Observable, Observer, of, Subscription, SubscriptionLike} from 'rxjs';
 import {delay, filter, first, map, mapTo, tap} from 'rxjs/operators';
 
+import {RouterInitializer} from '../src/router_module';
 import {forEach} from '../src/utils/collection';
+import {isUrlTree} from '../src/utils/type_guards';
 import {RouterTestingModule, SpyNgModuleFactoryLoader} from '../testing';
 
 describe('Integration', () => {
@@ -185,6 +186,47 @@ describe('Integration', () => {
 
          expect(navigation.extras.state).toBeDefined();
          expect(navigation.extras.state).toEqual(state);
+       })));
+
+    it('should navigate correctly when using `Location#historyGo',
+       fakeAsync(inject([Router, Location], (router: Router, location: SpyLocation) => {
+         router.resetConfig([
+           {path: 'first', component: SimpleCmp},
+           {path: 'second', component: SimpleCmp},
+
+         ]);
+
+         createRoot(router, RootCmp);
+
+         router.navigateByUrl('/first');
+         tick();
+         router.navigateByUrl('/second');
+         tick();
+         expect(router.url).toEqual('/second');
+
+         location.historyGo(-1);
+         tick();
+         expect(router.url).toEqual('/first');
+
+         location.historyGo(1);
+         tick();
+         expect(router.url).toEqual('/second');
+
+         location.historyGo(-100);
+         tick();
+         expect(router.url).toEqual('/second');
+
+         location.historyGo(100);
+         tick();
+         expect(router.url).toEqual('/second');
+
+         location.historyGo(0);
+         tick();
+         expect(router.url).toEqual('/second');
+
+         location.historyGo();
+         tick();
+         expect(router.url).toEqual('/second');
        })));
 
     it('should not error if state is not {[key: string]: any}',
@@ -406,10 +448,10 @@ describe('Integration', () => {
 
       @Component({
         template: `
-        <router-outlet (deactivate)="logDeactivate('primary')"></router-outlet>
-        <router-outlet name="first" (deactivate)="logDeactivate('first')"></router-outlet>
-        <router-outlet name="second" (deactivate)="logDeactivate('second')"></router-outlet>
-        `
+         <router-outlet (deactivate)="logDeactivate('primary')"></router-outlet>
+         <router-outlet name="first" (deactivate)="logDeactivate('first')"></router-outlet>
+         <router-outlet name="second" (deactivate)="logDeactivate('second')"></router-outlet>
+         `
       })
       class NamedOutletHost {
         logDeactivate(route: string) {
@@ -552,6 +594,39 @@ describe('Integration', () => {
              'second deactivate',
              // route param subscription from 'Parent' component
              {},
+           ]);
+         }));
+
+      it('should work between aux outlets under two levels of empty path parents', fakeAsync(() => {
+           TestBed.configureTestingModule({imports: [TestModule]});
+           const router = TestBed.inject(Router);
+           router.resetConfig([{
+             path: '',
+             children: [
+               {
+                 path: '',
+                 component: NamedOutletHost,
+                 children: [
+                   {path: 'one', component: Child1, outlet: 'first'},
+                   {path: 'two', component: Child2, outlet: 'first'},
+                 ]
+               },
+             ]
+           }]);
+
+           const fixture = createRoot(router, RootCmp);
+
+           router.navigateByUrl('/(first:one)');
+           advance(fixture);
+           expect(log).toEqual(['child1 constructor']);
+
+           log.length = 0;
+           router.navigateByUrl('/(first:two)');
+           advance(fixture);
+           expect(log).toEqual([
+             'child1 destroy',
+             'first deactivate',
+             'child2 constructor',
            ]);
          }));
     });
@@ -927,7 +1002,7 @@ describe('Integration', () => {
          expect(fixture.nativeElement).toHaveText('team 33 [ , right:  ]');
        })));
 
-    it('should should set `state` with urlUpdateStrategy="eagar"',
+    it('should set `state` with urlUpdateStrategy="eagar"',
        fakeAsync(inject([Router, Location], (router: Router, location: SpyLocation) => {
          router.urlUpdateStrategy = 'eager';
          router.resetConfig([
@@ -2216,11 +2291,11 @@ describe('Integration', () => {
          @Component({
            selector: 'someCmp',
            template: `<router-outlet></router-outlet>
-               <a [routerLink]="null">Link</a>
-               <button [routerLink]="null">Button</button>
-               <a [routerLink]="undefined">Link</a>
-               <button [routerLink]="undefined">Button</button>
-               `
+                <a [routerLink]="null">Link</a>
+                <button [routerLink]="null">Button</button>
+                <a [routerLink]="undefined">Link</a>
+                <button [routerLink]="undefined">Button</button>
+                `
          })
          class CmpWithLink {
          }
@@ -2588,7 +2663,6 @@ describe('Integration', () => {
          expect(location.path()).toEqual('/initial');
        })));
   });
-
   describe('guards', () => {
     describe('CanActivate', () => {
       describe('should not activate a route when CanActivate returns false', () => {
@@ -2811,161 +2885,6 @@ describe('Integration', () => {
              expect(location.path()).toEqual('/');
              expect(fixture.nativeElement).toHaveText('simple');
            })));
-      });
-
-      describe('should not break the history', () => {
-        @Injectable({providedIn: 'root'})
-        class MyGuard implements CanDeactivate<any> {
-          allow: boolean = true;
-          canDeactivate(): boolean {
-            return this.allow;
-          }
-        }
-
-        @Component({selector: 'parent', template: '<router-outlet></router-outlet>'})
-        class Parent {
-        }
-
-        @Component({selector: 'home', template: 'home'})
-        class Home {
-        }
-
-        @Component({selector: 'child1', template: 'child1'})
-        class Child1 {
-        }
-
-        @Component({selector: 'child2', template: 'child2'})
-        class Child2 {
-        }
-
-        @Component({selector: 'child3', template: 'child3'})
-        class Child3 {
-        }
-
-        @Component({selector: 'child4', template: 'child4'})
-        class Child4 {
-        }
-
-        @Component({selector: 'child5', template: 'child5'})
-        class Child5 {
-        }
-
-        @NgModule({
-          declarations: [Parent, Home, Child1, Child2, Child3, Child4, Child5],
-          entryComponents: [Child1, Child2, Child3, Child4, Child5],
-          imports: [RouterModule]
-        })
-        class TestModule {
-        }
-
-        let fixture: ComponentFixture<unknown>;
-
-        beforeEach(fakeAsync(() => {
-          TestBed.configureTestingModule({imports: [TestModule]});
-          const router = TestBed.get(Router);
-          const location = TestBed.get(Location);
-          fixture = createRoot(router, Parent);
-
-          router.resetConfig([
-            {path: '', component: Home},
-            {path: 'first', component: Child1},
-            {path: 'second', component: Child2},
-            {path: 'third', component: Child3, canDeactivate: [MyGuard]},
-            {path: 'fourth', component: Child4},
-            {path: 'fifth', component: Child5},
-          ]);
-
-          // Create a navigation history of pages 1-5, and go back to 3 so that there is both
-          // back and forward history.
-          router.navigateByUrl('/first');
-          advance(fixture);
-          router.navigateByUrl('/second');
-          advance(fixture);
-          router.navigateByUrl('/third');
-          advance(fixture);
-          router.navigateByUrl('/fourth');
-          advance(fixture);
-          router.navigateByUrl('/fifth');
-          advance(fixture);
-          location.back();
-          advance(fixture);
-          location.back();
-          advance(fixture);
-        }));
-
-        // TODO(https://github.com/angular/angular/issues/13586)
-        // A fix to this requires much more design
-        xit('when navigate back using Back button', fakeAsync(() => {
-              const location = TestBed.get(Location);
-              expect(location.path()).toEqual('/third');
-
-              TestBed.get(MyGuard).allow = false;
-              location.back();
-              advance(fixture);
-              expect(location.path()).toEqual('/third');
-              expect(fixture.nativeElement).toHaveText('child3');
-
-              TestBed.get(MyGuard).allow = true;
-              location.back();
-              advance(fixture);
-              expect(location.path()).toEqual('/second');
-              expect(fixture.nativeElement).toHaveText('child2');
-            }));
-
-        it('when navigate back imperatively', fakeAsync(() => {
-             const router = TestBed.get(Router);
-             const location = TestBed.get(Location);
-             expect(location.path()).toEqual('/third');
-
-             TestBed.get(MyGuard).allow = false;
-             router.navigateByUrl('/second');
-             advance(fixture);
-             expect(location.path()).toEqual('/third');
-             expect(fixture.nativeElement).toHaveText('child3');
-
-             TestBed.get(MyGuard).allow = true;
-             location.back();
-             advance(fixture);
-             expect(location.path()).toEqual('/second');
-             expect(fixture.nativeElement).toHaveText('child2');
-           }));
-
-        // TODO(https://github.com/angular/angular/issues/13586)
-        // A fix to this requires much more design
-        xit('when navigate back using Foward button', fakeAsync(() => {
-              const location = TestBed.get(Location);
-              expect(location.path()).toEqual('/third');
-
-              TestBed.get(MyGuard).allow = false;
-              location.forward();
-              advance(fixture);
-              expect(location.path()).toEqual('/third');
-              expect(fixture.nativeElement).toHaveText('child3');
-
-              TestBed.get(MyGuard).allow = true;
-              location.forward();
-              advance(fixture);
-              expect(location.path()).toEqual('/fourth');
-              expect(fixture.nativeElement).toHaveText('child4');
-            }));
-
-        it('when navigate forward imperatively', fakeAsync(() => {
-             const router = TestBed.get(Router);
-             const location = TestBed.get(Location);
-             expect(location.path()).toEqual('/third');
-
-             TestBed.get(MyGuard).allow = false;
-             router.navigateByUrl('/fourth');
-             advance(fixture);
-             expect(location.path()).toEqual('/third');
-             expect(fixture.nativeElement).toHaveText('child3');
-
-             TestBed.get(MyGuard).allow = true;
-             location.forward();
-             advance(fixture);
-             expect(location.path()).toEqual('/fourth');
-             expect(fixture.nativeElement).toHaveText('child4');
-           }));
       });
 
       describe('should redirect when guard returns UrlTree', () => {
@@ -4681,10 +4600,10 @@ describe('Integration', () => {
     it('should expose an isActive property', fakeAsync(() => {
          @Component({
            template: `<a routerLink="/team" routerLinkActive #rla="routerLinkActive"></a>
-              <p>{{rla.isActive}}</p>
-              <span *ngIf="rla.isActive"></span>
-              <span [ngClass]="{'highlight': rla.isActive}"></span>
-              <router-outlet></router-outlet>`
+               <p>{{rla.isActive}}</p>
+               <span *ngIf="rla.isActive"></span>
+               <span [ngClass]="{'highlight': rla.isActive}"></span>
+               <router-outlet></router-outlet>`
          })
          class ComponentWithRouterLink {
          }
@@ -5591,8 +5510,8 @@ describe('Integration', () => {
            selector: 'link-cmp',
            template:
                `<a [relativeTo]="route.parent" [routerLink]="[{outlets: {'secondary': null}}]">link</a>
-           <button [relativeTo]="route.parent" [routerLink]="[{outlets: {'secondary': null}}]">link</button>
-           `
+            <button [relativeTo]="route.parent" [routerLink]="[{outlets: {'secondary': null}}]">link</button>
+            `
          })
          class RelativeLinkCmp {
            @ViewChild(RouterLink) buttonLink!: RouterLink;
@@ -5728,11 +5647,23 @@ describe('Integration', () => {
       }
     }
 
+    it('should be injectable', () => {
+      TestBed.configureTestingModule({
+        imports: [RouterTestingModule],
+        providers: [{provide: RouteReuseStrategy, useClass: AttachDetachReuseStrategy}]
+      });
+
+      const router = TestBed.inject(Router);
+
+      expect(router.routeReuseStrategy).toBeInstanceOf(AttachDetachReuseStrategy);
+    });
+
     it('should support attaching & detaching fragments',
        fakeAsync(inject([Router, Location], (router: Router, location: Location) => {
          const fixture = createRoot(router, RootCmp);
 
          router.routeReuseStrategy = new AttachDetachReuseStrategy();
+         spyOn(router.routeReuseStrategy, 'retrieve').and.callThrough();
 
          router.resetConfig([
            {
@@ -5750,14 +5681,19 @@ describe('Integration', () => {
          expect(location.path()).toEqual('/a/b');
          expect(teamCmp).toBeDefined();
          expect(simpleCmp).toBeDefined();
+         expect(router.routeReuseStrategy.retrieve).not.toHaveBeenCalled();
 
          router.navigateByUrl('/c');
          advance(fixture);
          expect(location.path()).toEqual('/c');
          expect(fixture.debugElement.children[1].componentInstance).toBeAnInstanceOf(UserCmp);
+         // We have still not encountered a route that should be reattached
+         expect(router.routeReuseStrategy.retrieve).not.toHaveBeenCalled();
 
          router.navigateByUrl('/a;p=1/b;p=2');
          advance(fixture);
+         // We retrieve both the stored route snapshots
+         expect(router.routeReuseStrategy.retrieve).toHaveBeenCalledTimes(2);
          const teamCmp2 = fixture.debugElement.children[1].componentInstance;
          const simpleCmp2 = fixture.debugElement.children[1].children[1].componentInstance;
          expect(location.path()).toEqual('/a;p=1/b;p=2');
@@ -5867,6 +5803,42 @@ describe('Integration', () => {
          expect(fixture).toContainComponent(Tool2Component, '(e)');
        }));
   });
+
+  describe('RouterInitializer', () => {
+    it('should not throw from appInitializer if module is destroyed before location is initialized',
+       done => {
+         let resolveInitializer: () => void;
+         let moduleRef: NgModuleRef<SelfDestructModule>;
+
+         @NgModule({
+           imports: [RouterModule.forRoot([])],
+           providers: [
+             {
+               provide: LOCATION_INITIALIZED,
+               useValue: new Promise<void>(resolve => resolveInitializer = resolve)
+             },
+             {
+               // Required when running the tests in a browser
+               provide: APP_BASE_HREF,
+               useValue: ''
+             }
+           ]
+         })
+         class SelfDestructModule {
+           constructor(ref: NgModuleRef<SelfDestructModule>, routerInitializer: RouterInitializer) {
+             moduleRef = ref;
+             routerInitializer.appInitializer().then(done, done.fail);
+           }
+         }
+
+         TestBed.resetTestingModule()
+             .configureTestingModule({imports: [SelfDestructModule], declarations: [SimpleCmp]})
+             .createComponent(SimpleCmp);
+
+         moduleRef!.destroy();
+         resolveInitializer!();
+       });
+  });
 });
 
 describe('Testing router options', () => {
@@ -5953,8 +5925,8 @@ class AbsoluteLinkCmp {
   selector: 'link-cmp',
   template:
       `<router-outlet></router-outlet><a routerLinkActive="active" [routerLinkActiveOptions]="{exact: exact}" [routerLink]="['./']">link</a>
-<button routerLinkActive="active" [routerLinkActiveOptions]="{exact: exact}" [routerLink]="['./']">button</button>
-`
+ <button routerLinkActive="active" [routerLinkActiveOptions]="{exact: exact}" [routerLink]="['./']">button</button>
+ `
 })
 class DummyLinkCmp {
   private exact: boolean;
@@ -6116,9 +6088,9 @@ class OutletInNgIf {
 @Component({
   selector: 'link-cmp',
   template: `<router-outlet></router-outlet>
-             <div id="link-parent" routerLinkActive="active" [routerLinkActiveOptions]="{exact: exact}">
-               <div ngClass="{one: 'true'}"><a [routerLink]="['./']">link</a></div>
-             </div>`
+              <div id="link-parent" routerLinkActive="active" [routerLinkActiveOptions]="{exact: exact}">
+                <div ngClass="{one: 'true'}"><a [routerLink]="['./']">link</a></div>
+              </div>`
 })
 class DummyLinkWithParentCmp {
   private exact: boolean;

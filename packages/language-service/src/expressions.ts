@@ -17,7 +17,7 @@ type AstPath = AstPathBase<AST>;
 function findAstAt(ast: AST, position: number, excludeEmpty: boolean = false): AstPath {
   const path: AST[] = [];
   const visitor = new class extends RecursiveAstVisitor {
-    visit(ast: AST) {
+    override visit(ast: AST) {
       if ((!excludeEmpty || ast.sourceSpan.start < ast.sourceSpan.end) &&
           inSpan(position, ast.sourceSpan)) {
         const isNotNarrower = path.length && !isNarrower(ast.span, path[path.length - 1].span);
@@ -74,6 +74,7 @@ export function getExpressionCompletions(
       result = undefined;
     },
     visitKeyedRead(_ast) {},
+    visitSafeKeyedRead(_ast) {},
     visitKeyedWrite(_ast) {},
     visitLiteralArray(_ast) {},
     visitLiteralMap(_ast) {},
@@ -168,6 +169,7 @@ export function getExpressionSymbol(
     visitThisReceiver(_ast) {},
     visitInterpolation(_ast) {},
     visitKeyedRead(_ast) {},
+    visitSafeKeyedRead(_ast) {},
     visitKeyedWrite(_ast) {},
     visitLiteralArray(_ast) {},
     visitLiteralMap(_ast) {},

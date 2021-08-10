@@ -7,38 +7,37 @@
  */
 
 import {Bar} from 'cli-progress';
-import {types as graphQLTypes} from 'typed-graphqlify';
+import {types as graphqlTypes} from 'typed-graphqlify';
 
-import {getConfig, NgDevConfig} from '../../utils/config';
 import {error, info} from '../../utils/console';
-import {GitClient} from '../../utils/git/index';
+import {AuthenticatedGitClient} from '../../utils/git/authenticated-git-client';
+import {GitCommandError} from '../../utils/git/git-client';
 import {getPendingPrs} from '../../utils/github';
-import {exec} from '../../utils/shelljs';
 
 
-/* GraphQL schema for the response body for each pending PR. */
+/* Graphql schema for the response body for each pending PR. */
 const PR_SCHEMA = {
   headRef: {
-    name: graphQLTypes.string,
+    name: graphqlTypes.string,
     repository: {
-      url: graphQLTypes.string,
-      nameWithOwner: graphQLTypes.string,
+      url: graphqlTypes.string,
+      nameWithOwner: graphqlTypes.string,
     },
   },
   baseRef: {
-    name: graphQLTypes.string,
+    name: graphqlTypes.string,
     repository: {
-      url: graphQLTypes.string,
-      nameWithOwner: graphQLTypes.string,
+      url: graphqlTypes.string,
+      nameWithOwner: graphqlTypes.string,
     },
   },
-  updatedAt: graphQLTypes.string,
-  number: graphQLTypes.number,
-  mergeable: graphQLTypes.string,
-  title: graphQLTypes.string,
+  updatedAt: graphqlTypes.string,
+  number: graphqlTypes.number,
+  mergeable: graphqlTypes.string,
+  title: graphqlTypes.string,
 };
 
-/* Pull Request response from Github GraphQL query */
+/* Pull Request response from Github Graphql query */
 type RawPullRequest = typeof PR_SCHEMA;
 
 /** Convert raw Pull Request response from Github to usable Pull Request object. */
@@ -53,12 +52,12 @@ type PullRequest = ReturnType<typeof processPr>;
 const tempWorkingBranch = '__NgDevRepoBaseAfterChange__';
 
 /** Checks if the provided PR will cause new conflicts in other pending PRs. */
-export async function discoverNewConflictsForPr(
-    newPrNumber: number, updatedAfter: number, config: Pick<NgDevConfig, 'github'> = getConfig()) {
-  const git = new GitClient();
+export async function discoverNewConflictsForPr(newPrNumber: number, updatedAfter: number) {
+  /** The singleton instance of the authenticated git client. */
+  const git = AuthenticatedGitClient.get();
   // If there are any local changes in the current repository state, the
   // check cannot run as it needs to move between branches.
-  if (git.hasLocalChanges()) {
+  if (git.hasUncommittedChanges()) {
     error('Cannot run with local changes. Please make sure there are no local changes.');
     process.exit(1);
   }
@@ -71,7 +70,7 @@ export async function discoverNewConflictsForPr(
   const conflicts: Array<PullRequest> = [];
 
   info(`Requesting pending PRs from Github`);
-  /** List of PRs from github currently known as mergable. */
+  /** List of PRs from github currently known as mergeable. */
   const allPendingPRs = (await getPendingPrs(PR_SCHEMA, git)).map(processPr);
   /** The PR which is being checked against. */
   const requestedPr = allPendingPRs.find(pr => pr.number === newPrNumber);
@@ -86,7 +85,7 @@ export async function discoverNewConflictsForPr(
     return (
         // PRs being merged into the same target branch as the requested PR
         pr.baseRef.name === requestedPr.baseRef.name &&
-        // PRs which either have not been processed or are determined as mergable by Github
+        // PRs which either have not been processed or are determined as mergeable by Github
         pr.mergeable !== 'CONFLICTING' &&
         // PRs updated after the provided date
         pr.updatedAt >= updatedAfter);
@@ -95,16 +94,20 @@ export async function discoverNewConflictsForPr(
   info(`Checking ${pendingPrs.length} PRs for conflicts after a merge of #${newPrNumber}`);
 
   // Fetch and checkout the PR being checked.
-  exec(`git fetch ${requestedPr.headRef.repository.url} ${requestedPr.headRef.name}`);
-  exec(`git checkout -B ${tempWorkingBranch} FETCH_HEAD`);
+  git.run(['fetch', '-q', requestedPr.headRef.repository.url, requestedPr.headRef.name]);
+  git.run(['checkout', '-q', '-B', tempWorkingBranch, 'FETCH_HEAD']);
 
   // Rebase the PR against the PRs target branch.
-  exec(`git fetch ${requestedPr.baseRef.repository.url} ${requestedPr.baseRef.name}`);
-  const result = exec(`git rebase FETCH_HEAD`);
-  if (result.code) {
-    error('The requested PR currently has conflicts');
-    cleanUpGitState(previousBranchOrRevision);
-    process.exit(1);
+  git.run(['fetch', '-q', requestedPr.baseRef.repository.url, requestedPr.baseRef.name]);
+  try {
+    git.run(['rebase', 'FETCH_HEAD'], {stdio: 'ignore'});
+  } catch (err) {
+    if (err instanceof GitCommandError) {
+      error('The requested PR currently has conflicts');
+      git.checkout(previousBranchOrRevision, true);
+      process.exit(1);
+    }
+    throw err;
   }
 
   // Start the progress bar
@@ -113,15 +116,20 @@ export async function discoverNewConflictsForPr(
   // Check each PR to determine if it can merge cleanly into the repo after the target PR.
   for (const pr of pendingPrs) {
     // Fetch and checkout the next PR
-    exec(`git fetch ${pr.headRef.repository.url} ${pr.headRef.name}`);
-    exec(`git checkout --detach FETCH_HEAD`);
+    git.run(['fetch', '-q', pr.headRef.repository.url, pr.headRef.name]);
+    git.run(['checkout', '-q', '--detach', 'FETCH_HEAD']);
     // Check if the PR cleanly rebases into the repo after the target PR.
-    const result = exec(`git rebase ${tempWorkingBranch}`);
-    if (result.code !== 0) {
-      conflicts.push(pr);
+    try {
+      git.run(['rebase', tempWorkingBranch], {stdio: 'ignore'});
+    } catch (err) {
+      if (err instanceof GitCommandError) {
+        conflicts.push(pr);
+      } else {
+        throw err;
+      }
     }
     // Abort any outstanding rebase attempt.
-    exec(`git rebase --abort`);
+    git.runGraceful(['rebase', '--abort'], {stdio: 'ignore'});
 
     progressBar.increment(1);
   }
@@ -130,7 +138,7 @@ export async function discoverNewConflictsForPr(
   info();
   info(`Result:`);
 
-  cleanUpGitState(previousBranchOrRevision);
+  git.checkout(previousBranchOrRevision, true);
 
   // If no conflicts are found, exit successfully.
   if (conflicts.length === 0) {
@@ -145,16 +153,4 @@ export async function discoverNewConflictsForPr(
   }
   error.groupEnd();
   process.exit(1);
-}
-
-/** Reset git back to the provided branch or revision. */
-export function cleanUpGitState(previousBranchOrRevision: string) {
-  // Ensure that any outstanding rebases are aborted.
-  exec(`git rebase --abort`);
-  // Ensure that any changes in the current repo state are cleared.
-  exec(`git reset --hard`);
-  // Checkout the original branch from before the run began.
-  exec(`git checkout ${previousBranchOrRevision}`);
-  // Delete the generated branch.
-  exec(`git branch -D ${tempWorkingBranch}`);
 }

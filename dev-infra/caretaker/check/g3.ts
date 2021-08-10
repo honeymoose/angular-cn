@@ -10,8 +10,7 @@ import {existsSync, readFileSync} from 'fs';
 import * as multimatch from 'multimatch';
 import {join} from 'path';
 import {parse as parseYaml} from 'yaml';
-import {getRepoBaseDir} from '../../utils/config';
-import {bold, debug, error, info} from '../../utils/console';
+import {bold, debug, info} from '../../utils/console';
 
 import {BaseModule} from './base';
 
@@ -24,7 +23,7 @@ export interface G3StatsData {
 }
 
 export class G3Module extends BaseModule<G3StatsData|void> {
-  async retrieveData() {
+  override async retrieveData() {
     const toCopyToG3 = this.getG3FileIncludeAndExcludeLists();
     const latestSha = this.getLatestShas();
 
@@ -36,7 +35,7 @@ export class G3Module extends BaseModule<G3StatsData|void> {
         latestSha.g3, latestSha.master, toCopyToG3.include, toCopyToG3.exclude);
   }
 
-  async printToTerminal() {
+  override async printToTerminal() {
     const stats = await this.data;
     if (!stats) {
       return;
@@ -121,7 +120,7 @@ export class G3Module extends BaseModule<G3StatsData|void> {
 
 
   private getG3FileIncludeAndExcludeLists() {
-    const angularRobotFilePath = join(getRepoBaseDir(), '.github/angular-robot.yml');
+    const angularRobotFilePath = join(this.git.baseDir, '.github/angular-robot.yml');
     if (!existsSync(angularRobotFilePath)) {
       debug('No angular robot configuration file exists, skipping.');
       return null;

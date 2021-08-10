@@ -269,9 +269,11 @@ export {
 } from './render3/jit/module';
 export {
   FactoryTarget as ɵɵFactoryTarget,
+  ɵɵngDeclareClassMetadata,
   ɵɵngDeclareComponent,
   ɵɵngDeclareDirective,
   ɵɵngDeclareFactory,
+  ɵɵngDeclareInjectable,
   ɵɵngDeclareInjector,
   ɵɵngDeclareNgModule,
   ɵɵngDeclarePipe,

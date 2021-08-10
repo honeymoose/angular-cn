@@ -672,6 +672,8 @@ export class StaticReflector implements CompileReflector {
                     return left / right;
                   case '%':
                     return left % right;
+                  case '??':
+                    return left ?? right;
                 }
                 return null;
               case 'if':
@@ -1054,7 +1056,7 @@ class PopulatedScope extends BindingScope {
     super();
   }
 
-  resolve(name: string): any {
+  override resolve(name: string): any {
     return this.bindings.has(name) ? this.bindings.get(name) : BindingScope.missing;
   }
 }

@@ -10,13 +10,18 @@
   },
   "dependencies": {
     "@angular/benchpress": "0.2.1",
+    "@bazel/buildifier": "<from-root>",
+    "@bazel/runfiles": "<from-root>",
+    "@microsoft/api-extractor": "<from-root>",
     "@octokit/graphql": "<from-root>",
-    "@octokit/types": "<from-root>",
     "@octokit/rest": "<from-root>",
+    "@octokit/types": "<from-root>",
     "brotli": "<from-root>",
     "chalk": "<from-root>",
+    "clang-format": "<from-root>",
     "cli-progress": "<from-root>",
     "conventional-commits-parser": "<from-root>",
+    "ejs": "<from-root>",
     "git-raw-commits": "<from-root>",
     "glob": "<from-root>",
     "inquirer": "<from-root>",
@@ -25,24 +30,24 @@
     "node-fetch": "<from-root>",
     "node-uuid": "<from-root>",
     "ora": "<from-root>",
-    "semver": "<from-root>",
-    "shelljs": "<from-root>",
-    "tslib": "<from-root>",
-    "typed-graphqlify": "<from-root>",
-    "yaml": "<from-root>",
-    "yargs": "<from-root>",
-    "@bazel/buildifier": "<from-root>",
-    "clang-format": "<from-root>",
     "protractor": "<from-root>",
     "selenium-webdriver": "<from-root>",
+    "semver": "<from-root>",
     "ts-node": "<from-root>",
-    "typescript": "<from-root>"
+    "tslib": "<from-root>",
+    "typed-graphqlify": "<from-root>",
+    "typescript": "<from-root>",
+    "yaml": "<from-root>",
+    "yargs": "<from-root>"
   },
   "peerDependenciesMeta": {
     "@bazel/buildifier": {
       "optional": true
     },
     "clang-format": {
+      "optional": true
+    },
+    "prettier": {
       "optional": true
     },
     "protractor": {
