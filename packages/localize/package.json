@@ -29,7 +29,7 @@
     "**/localize-init.umd.js"
   ],
   "dependencies": {
-    "@babel/core": "7.8.3",
+    "@babel/core": "7.19.0",
     "glob": "7.1.7",
     "yargs": "^17.0.0"
   },
