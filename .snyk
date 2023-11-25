@@ -1,0 +1,23 @@
+# Snyk (https://snyk.io) policy file, patches or ignores known vulnerabilities.
+version: v1.25.1
+ignore: {}
+# patches apply the minimum changes required to fix a vulnerability
+patch:
+  'npm:debug:20170905':
+    - karma > body-parser > debug:
+        patched: '2023-11-25T21:02:48.432Z'
+        id: 'npm:debug:20170905'
+        path: karma > body-parser > debug
+    - karma > socket.io > socket.io-adapter > socket.io-parser > debug:
+        patched: '2023-11-25T21:02:48.432Z'
+        id: 'npm:debug:20170905'
+        path: karma > socket.io > socket.io-adapter > socket.io-parser > debug
+  'npm:ms:20170412':
+    - karma > body-parser > debug > ms:
+        patched: '2023-11-25T21:02:48.432Z'
+        id: 'npm:ms:20170412'
+        path: karma > body-parser > debug > ms
+    - karma > socket.io > socket.io-adapter > socket.io-parser > debug > ms:
+        patched: '2023-11-25T21:02:48.432Z'
+        id: 'npm:ms:20170412'
+        path: karma > socket.io > socket.io-adapter > socket.io-parser > debug > ms

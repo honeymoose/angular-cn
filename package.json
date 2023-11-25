@@ -23,7 +23,7 @@
     "// 3": "yarn ng-dev --help",
     "/ ": "",
     "postinstall": "node scripts/webdriver-manager-update.js && node --preserve-symlinks --preserve-symlinks-main ./tools/postinstall-patches.js",
-    "prepare": "husky install",
+    "prepare": "npm run snyk-protect && husky install",
     "test-ivy-aot": "bazelisk test --config=ivy --build_tag_filters=-no-ivy-aot,-fixme-ivy-aot --test_tag_filters=-no-ivy-aot,-fixme-ivy-aot",
     "test-non-ivy": "bazelisk test --build_tag_filters=-ivy-only --test_tag_filters=-ivy-only",
     "test-fixme-ivy-aot": "bazelisk test --config=ivy --build_tag_filters=-no-ivy-aot --test_tag_filters=-no-ivy-aot",
@@ -37,7 +37,8 @@
     "ts-circular-deps:check": "yarn -s ng-dev ts-circular-deps check --config ./packages/circular-deps-test.conf.js",
     "ts-circular-deps:approve": "yarn -s ng-dev ts-circular-deps approve --config ./packages/circular-deps-test.conf.js",
     "ng-dev": "node dev-infra/ng-dev",
-    "ng-dev:dev": "ts-node --transpile-only -- dev-infra/cli.ts"
+    "ng-dev:dev": "ts-node --transpile-only -- dev-infra/cli.ts",
+    "snyk-protect": "snyk-protect"
   },
   "// 1": "dependencies are used locally and by bazel",
   "dependencies": {
@@ -52,7 +53,7 @@
     "@babel/parser": "7.9.4",
     "@babel/preset-env": "7.10.2",
     "@babel/template": "7.8.6",
-    "@babel/traverse": "7.8.6",
+    "@babel/traverse": "7.23.2",
     "@babel/types": "7.8.6",
     "@bazel/concatjs": "4.0.0-beta.1",
     "@bazel/jasmine": "4.0.0-beta.1",
@@ -106,7 +107,7 @@
     "bluebird": "^3.7.2",
     "brotli": "^1.3.2",
     "canonical-path": "1.0.0",
-    "chalk": "^4.1.0",
+    "chalk": "^2.0.0",
     "chokidar": "^3.5.1",
     "convert-source-map": "^1.5.1",
     "core-js-bundle": "^3.10.2",
@@ -118,12 +119,12 @@
     "hammerjs": "~2.0.8",
     "http-server": "^0.12.3",
     "incremental-dom": "0.7.0",
-    "jasmine": "^3.5.0",
+    "jasmine": "^3.1.0",
     "jasmine-ajax": "^4.0.0",
-    "jasmine-core": "^3.5.0",
+    "jasmine-core": "^3.1.0",
     "jquery": "3.6.0",
     "js-levenshtein": "^1.1.6",
-    "karma": "~4.4.0",
+    "karma": "~6.3.16",
     "karma-chrome-launcher": "^3.1.0",
     "karma-firefox-launcher": "^2.1.0",
     "karma-jasmine": "^4.0.1",
@@ -131,12 +132,12 @@
     "karma-sourcemap-loader": "^0.3.7",
     "magic-string": "0.25.7",
     "materialize-css": "1.0.0",
-    "minimatch": "^3.0.4",
-    "minimist": "^1.2.5",
+    "minimatch": "^3.0.5",
+    "minimist": "^1.2.6",
     "node-fetch": "^2.6.1",
     "node-uuid": "1.4.8",
     "nodejs-websocket": "^1.7.2",
-    "protractor": "^7.0.0",
+    "protractor": "^6.0.0",
     "puppeteer": "5.4.1",
     "reflect-metadata": "^0.1.3",
     "requirejs": "^2.3.6",
@@ -145,8 +146,8 @@
     "rollup-plugin-node-resolve": "^5.2.0",
     "rollup-plugin-sourcemaps": "^0.6.3",
     "rxjs": "^6.5.3",
-    "selenium-webdriver": "3.5.0",
-    "shelljs": "^0.8.4",
+    "selenium-webdriver": "4.0.0",
+    "shelljs": "^0.8.5",
     "source-map": "^0.6.1",
     "source-map-support": "0.5.19",
     "sourcemap-codec": "^1.4.8",
@@ -159,7 +160,8 @@
     "typescript": "~4.3.4",
     "xhr2": "0.2.1",
     "yaml": "^1.10.0",
-    "yargs": "^17.0.0"
+    "yargs": "^13.2.4",
+    "@snyk/protect": "latest"
   },
   "// 2": "devDependencies are not used under Bazel. Many can be removed after test.sh is deleted.",
   "devDependencies": {
@@ -220,5 +222,6 @@
     "@babel/template": "7.8.6",
     "@babel/traverse": "7.8.6",
     "@babel/types": "7.8.6"
-  }
+  },
+  "snyk": true
 }
